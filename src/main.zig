@@ -50,6 +50,7 @@ const BugKind = enum {
 const Bug = struct {
     kind: BugKind,
     health: f32,
+    position: rl.Vector2,
 
     fn maxHealth(kind: BugKind) f32 {
         return switch (kind) {
