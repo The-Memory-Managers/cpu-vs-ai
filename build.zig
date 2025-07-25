@@ -1,4 +1,5 @@
 const std = @import("std");
+const rlz = @import("raylib_zig");
 
 pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
@@ -20,9 +21,12 @@ pub fn build(b: *std.Build) void {
         .target = target,
         .optimize = optimize,
 
+        .platform = rlz.PlatformBackend.glfw,
+        .linux_display_backend = rlz.LinuxDisplayBackend.X11,
+
         // See https://github.com/Not-Nik/raylib-zig/issues/219
         // We can either have users download both, or maybe try disabling lld?
-        .shared = true,
+        // .shared = true,
     });
 
     const raylib = raylib_dep.module("raylib"); // main raylib module
