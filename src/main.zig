@@ -46,6 +46,8 @@ const BugKind = enum {
     nullptr_deref,
     stack_overflow,
     infinite_loop,
+
+    const count = @typeInfo(BugKind).Enum.fields.len;
 };
 
 const Bug = struct {
@@ -62,7 +64,7 @@ const Bug = struct {
             .health = maxHealth(kind),
             .position = position,
             .previous = position,
-            .target = position,
+            .target = position.add(rl.Vector2.init(cell_size, 0)), // 1 unit to the right
         };
     }
 
@@ -143,15 +145,25 @@ const Cell = union(enum) {
     }
 };
 
+const SpawnRule = struct {
+    from_time_s: f32,
+    to_time_s: f32,
+    bugs: [Bug.count]u32, // index is enum
+};
+
 const Wave = struct {
     arena: std.heap.ArenaAllocator,
     map: [cells_height][cells_width]Cell = [_][cells_width]Cell{[_]Cell{.none} ** cells_width} ** cells_height,
+    bugs: std.ArrayList(Bug),
+    time_since_start: f32,
 
     fn init() Wave {
         const height_middle = 4;
 
+        var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
         var wave = Wave{
-            .arena = std.heap.ArenaAllocator.init(std.heap.page_allocator),
+            .arena = arena,
+            .bugs = std.ArrayList(Bug).init(arena.allocator()),
         };
 
         for (1..cells_height - 1) |y| {
@@ -171,6 +183,15 @@ const Wave = struct {
         }
 
         return wave;
+    }
+    
+    fn update(self: *Wave, delta_time: f32) void {
+        // TODO: quite a bit of logic here
+        self.time_since_start += delta_time;
+    }
+
+    fn deinit(self: *Wave) void {
+        self.arena.deinit();
     }
 
     fn get(self: *Wave, x: usize, y: usize) Cell {
