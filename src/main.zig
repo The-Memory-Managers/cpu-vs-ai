@@ -1,5 +1,6 @@
 const std = @import("std");
 const rl = @import("raylib");
+const rlg = @import("raygui");
 const assert = std.debug.assert;
 
 const cell_size = 32;
@@ -51,8 +52,21 @@ const Bug = struct {
     kind: BugKind,
     health: f32,
     position: rl.Vector2,
+    previous: rl.Vector2, // Center of prev
+    target: rl.Vector2, // Center of next cell
+    // TODO: bugs need to know their "previous" square, so they know their next
 
-    fn maxHealth(kind: BugKind) f32 {
+    pub fn init(kind: BugKind, position: rl.Vector2) Bug {
+        return Bug{
+            .kind = kind,
+            .health = maxHealth(kind),
+            .position = position,
+            .previous = position,
+            .target = position,
+        };
+    }
+
+    pub fn maxHealth(kind: BugKind) f32 {
         return switch (kind) {
             .nullptr_deref => return 30,
             .stack_overflow => return 100,
@@ -134,6 +148,8 @@ const Wave = struct {
     map: [cells_height][cells_width]Cell = [_][cells_width]Cell{[_]Cell{.none} ** cells_width} ** cells_height,
 
     fn init() Wave {
+        const height_middle = 4;
+
         var wave = Wave{
             .arena = std.heap.ArenaAllocator.init(std.heap.page_allocator),
         };
@@ -149,8 +165,9 @@ const Wave = struct {
             }
         }
 
+        wave.map[height_middle][0] = .ai;
         for (1..cells_width - 1) |x| {
-            wave.map[4][x] = .lane;
+            wave.map[height_middle][x] = .lane;
         }
 
         return wave;
@@ -167,6 +184,7 @@ const Wave = struct {
 const TextureKind = enum {
     socket,
     lane,
+    ai,
 };
 
 const Game = struct {
@@ -191,11 +209,12 @@ const Game = struct {
         const ga = global_arena.allocator();
         var texture_map = std.AutoHashMap(TextureKind, rl.Texture2D).init(ga);
 
-        const lane = rl.loadTexture("assets/img/socket.png") catch unreachable;
-
-        const socket = rl.loadTexture("assets/img/lane.png") catch unreachable;
-        texture_map.put(.socket, lane) catch unreachable;
-        texture_map.put(.lane, socket) catch unreachable;
+        const lane = rl.loadTexture("assets/img/lane.png") catch unreachable;
+        const socket = rl.loadTexture("assets/img/socket.png") catch unreachable;
+        const ai = rl.loadTexture("assets/img/ai.png") catch unreachable;
+        texture_map.put(.socket, socket) catch unreachable;
+        texture_map.put(.lane, lane) catch unreachable;
+        texture_map.put(.ai, ai) catch unreachable;
 
         const font_title = rl.loadFont("assets/font/DepartureMonoNerdFontMono-Regular.otf") catch unreachable;
         const font_normal = rl.loadFont("assets/font/GohuFont14NerdFontMono-Regular.ttf") catch unreachable;
@@ -217,8 +236,8 @@ const Game = struct {
             .font_title = font_title,
             .font_normal = font_normal,
             .screen_state = .{
-                .battle = .{},
-                // .main = .{},
+                //.battle = .{},
+                .main = .{},
             },
         };
     }
@@ -235,6 +254,17 @@ const Game = struct {
 
     fn process(self: *Game) void {
         std.debug.print("Delta time: {d}\n", .{rl.getFrameTime()});
+
+        switch (self.screen_state) {
+            .main => |m| {
+                var mut_m = m;
+                mut_m.update(self);
+            },
+            .battle => |b| {
+                var mut_b = b;
+                mut_b.update(self);
+            },
+        }
 
         self.updateCamera();
     }
@@ -290,6 +320,10 @@ const ScreenMainMenu = struct {
         rl.clearBackground(bg_color);
 
         rl.drawTextEx(game.font_title, "Test", rl.Vector2.init(20, 20), 40, 4, rl.Color.white);
+
+        if (rlg.button(.{ .x = 30, .y = 30, .width = 200, .height = 100 }, "Start")) {
+            game.screen_state = .{ .battle = .{} };
+        }
     }
 };
 
@@ -313,6 +347,7 @@ const ScreenBattle = struct {
             rl.beginMode2D(camera);
             defer rl.endMode2D();
 
+            // TODO: make bugs render between (on top of) lanes and (under) AI
             for (0..map.len) |y| {
                 for (0..map[0].len) |x| {
                     self.drawCell(game, x, y);
@@ -390,7 +425,10 @@ const ScreenBattle = struct {
                 );
             },
             .cpu => {},
-            .ai => {},
+            .ai => {
+                const texture = game.texture_map.get(.ai).?;
+                rl.drawTexture(texture, @intCast(x * cell_size), @intCast(y * cell_size), rl.Color.white);
+            },
             .color => |color| {
                 rl.drawRectangle(
                     @intCast(x * cell_size),
