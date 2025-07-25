@@ -19,7 +19,7 @@ pub fn main() anyerror!void {
 
     rl.initWindow(screenWidth, screenHeight, "Hackathon");
     defer rl.closeWindow(); // Close window and OpenGL context
-    // rl.setWindowState(.{ .window_resizable = true });
+    rl.setWindowState(.{ .window_resizable = true });
 
     rl.setTargetFPS(60); // Set our game to run at 60 frames-per-second
     rl.setExitKey(.caps_lock);
@@ -42,12 +42,12 @@ pub fn main() anyerror!void {
     }
 }
 
-const BugKind = enum {
-    nullptr_deref,
-    stack_overflow,
-    infinite_loop,
+const BugKind = enum(u8) {
+    nullptr_deref = 0,
+    stack_overflow = 1,
+    infinite_loop = 2,
 
-    const count = @typeInfo(BugKind).Enum.fields.len;
+    const count = @typeInfo(BugKind).@"enum".fields.len;
 };
 
 const Bug = struct {
@@ -148,22 +148,64 @@ const Cell = union(enum) {
 const SpawnRule = struct {
     from_time_s: f32,
     to_time_s: f32,
-    bugs: [Bug.count]u32, // index is enum
+    bugs: [BugKind.count]struct {
+        last_spawn: f32 = 0,
+        spawn_interval: f32,
+    }, // index is enum
 };
 
 const Wave = struct {
     arena: std.heap.ArenaAllocator,
     map: [cells_height][cells_width]Cell = [_][cells_width]Cell{[_]Cell{.none} ** cells_width} ** cells_height,
     bugs: std.ArrayList(Bug),
-    time_since_start: f32,
+    spawn_rules: std.ArrayList(SpawnRule),
+    time_since_start: f32 = 0,
 
-    fn init() Wave {
+    fn init(wave_number: u8) Wave {
         const height_middle = 4;
 
+        // TODO: probably fine for hackathon but post hackathon, this is really bad
+        // We alloc 2 arraylists on this, we need a pool allocator
         var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+
+        // This is horrible code, sorry
+        var spawn_rules = std.ArrayList(SpawnRule).init(arena.allocator());
+        if (wave_number == 1) {
+            spawn_rules.append(.{
+                .from_time_s = 0,
+                .to_time_s = 10,
+                .bugs = .{
+                    .{ .spawn_interval = 1 },
+                    .{ .spawn_interval = 0 },
+                    .{ .spawn_interval = 0 },
+                },
+            }) catch unreachable;
+
+            spawn_rules.append(.{
+                .from_time_s = 10,
+                .to_time_s = 20,
+                .bugs = .{
+                    .{ .spawn_interval = 2 },
+                    .{ .spawn_interval = 0.5 },
+                    .{ .spawn_interval = 0 },
+                },
+            }) catch unreachable;
+
+            spawn_rules.append(.{
+                .from_time_s = 20,
+                .to_time_s = 30,
+                .bugs = .{
+                    .{ .spawn_interval = 5 },
+                    .{ .spawn_interval = 1 },
+                    .{ .spawn_interval = 0.5 },
+                },
+            }) catch unreachable;
+        } else if (wave_number == 2) {} else if (wave_number == 3) {}
+
         var wave = Wave{
             .arena = arena,
             .bugs = std.ArrayList(Bug).init(arena.allocator()),
+            .spawn_rules = spawn_rules,
         };
 
         for (1..cells_height - 1) |y| {
@@ -184,10 +226,23 @@ const Wave = struct {
 
         return wave;
     }
-    
+
     fn update(self: *Wave, delta_time: f32) void {
         // TODO: quite a bit of logic here
         self.time_since_start += delta_time;
+
+        // TODO: post hackathon, optimize this
+        for (self.spawn_rules) |*rules| {
+            for (rules.bugs) |bug| {
+                bug.last_spawn += delta_time;
+                if (bug.last_spawn >= bug.spawn_interval) {
+                    bug.last_spawn -= bug.spawn_interval;
+                    // TODO: spawn bug
+                    // Should initialize it at the center of AI
+                    //
+                }
+            }
+        }
     }
 
     fn deinit(self: *Wave) void {
@@ -252,7 +307,7 @@ const Game = struct {
             },
             .global_arena = global_arena,
             .frame_arena = std.heap.ArenaAllocator.init(std.heap.page_allocator),
-            .wave = .init(),
+            .wave = .init(1), // TODO: change this and move this to ScreenBattle state
             .texture_map = texture_map,
             .font_title = font_title,
             .font_normal = font_normal,
@@ -342,7 +397,7 @@ const ScreenMainMenu = struct {
 
         rl.drawTextEx(game.font_title, "Test", rl.Vector2.init(20, 20), 40, 4, rl.Color.white);
 
-        if (rlg.button(.{ .x = 30, .y = 30, .width = 200, .height = 100 }, "Start")) {
+        if (rlg.button(.{ .x = 100, .y = 100, .width = 400, .height = 200 }, "Play")) {
             game.screen_state = .{ .battle = .{} };
         }
     }
