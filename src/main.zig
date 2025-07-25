@@ -47,6 +47,35 @@ const BugKind = enum {
     infinite_loop,
 };
 
+const Bug = struct {
+    kind: BugKind,
+    health: f32,
+
+    fn maxHealth(kind: BugKind) f32 {
+        return switch (kind) {
+            .nullptr_deref => return 30,
+            .stack_overflow => return 100,
+            .infinite_loop => return 10,
+        };
+    }
+
+    fn speed(kind: BugKind) f32 {
+        return switch (kind) {
+            .nullptr_deref => return 30,
+            .stack_overflow => return 10,
+            .infinite_loop => return 100,
+        };
+    }
+
+    fn damage(self: Bug) f32 {
+        return switch (self.kind) {
+            .nullptr_deref => return 1,
+            .stack_overflow => return 2,
+            .infinite_loop => return 0.5,
+        } * self.health;
+    }
+};
+
 const Condition = union(enum) {
     always,
     memory_leak: f32, // Health percentage, ram<0.25 or ram<0.5 (randomized)
@@ -92,7 +121,7 @@ const Cell = union(enum) {
 
     fn isLaneConnected(self: Cell) bool {
         return switch (self) {
-            .lane => true,
+            .lane => false,
             .ai => true,
             else => false,
         };
@@ -120,7 +149,7 @@ const Wave = struct {
         }
 
         for (1..cells_width - 1) |x| {
-            wave.map[cells_height - 2][x] = .lane;
+            wave.map[4][x] = .lane;
         }
 
         return wave;
@@ -187,7 +216,8 @@ const Game = struct {
             .font_title = font_title,
             .font_normal = font_normal,
             .screen_state = .{
-                .main = .{},
+                .battle = .{},
+                // .main = .{},
             },
         };
     }
@@ -210,8 +240,14 @@ const Game = struct {
 
     fn render(self: *Game) void {
         switch (self.screen_state) {
-            .main => self.renderMain(),
-            .wave => self.renderWave(),
+            .main => |m| {
+                var mut_m = m;
+                mut_m.render(self);
+            },
+            .battle => |b| {
+                var mut_b = b;
+                mut_b.render(self);
+            },
         }
     }
 
@@ -246,7 +282,13 @@ const ScreenMainMenu = struct {
 
     fn render(self: *ScreenMainMenu, game: *Game) void {
         _ = self;
-        _ = game;
+
+        rl.beginDrawing();
+        defer rl.endDrawing();
+
+        rl.clearBackground(bg_color);
+
+        rl.drawTextEx(game.font_title, "Test", rl.Vector2.init(20, 20), 40, 4, rl.Color.white);
     }
 };
 
