@@ -292,8 +292,8 @@ const Game = struct {
         texture_map.put(.lane, lane) catch unreachable;
         texture_map.put(.ai, ai) catch unreachable;
 
-        const font_title = rl.loadFont("assets/font/DepartureMonoNerdFontMono-Regular.otf") catch unreachable;
-        const font_normal = rl.loadFont("assets/font/GohuFont14NerdFontMono-Regular.ttf") catch unreachable;
+        const font_title = rl.loadFontEx("assets/font/DepartureMonoNerdFontMono-Regular.otf", 80, null) catch unreachable;
+        const font_normal = rl.loadFontEx("assets/font/GohuFont14NerdFontMono-Regular.ttf", 80, null) catch unreachable;
 
         return .{
             .camera = .{
@@ -331,14 +331,13 @@ const Game = struct {
     fn process(self: *Game) void {
         std.debug.print("Delta time: {d}\n", .{rl.getFrameTime()});
 
+        // TODO: find a better method of mutating the original
         switch (self.screen_state) {
-            .main => |m| {
-                var mut_m = m;
-                mut_m.update(self);
+            .main => |_| {
+                self.screen_state.main.update(self);
             },
-            .battle => |b| {
-                var mut_b = b;
-                mut_b.update(self);
+            .battle => |_| {
+                self.screen_state.battle.update(self);
             },
         }
 
@@ -346,14 +345,13 @@ const Game = struct {
     }
 
     fn render(self: *Game) void {
+        // TODO: find a better method of mutating the original
         switch (self.screen_state) {
-            .main => |m| {
-                var mut_m = m;
-                mut_m.render(self);
+            .main => |_| {
+                self.screen_state.main.render(self);
             },
-            .battle => |b| {
-                var mut_b = b;
-                mut_b.render(self);
+            .battle => |_| {
+                self.screen_state.battle.render(self);
             },
         }
     }
@@ -395,9 +393,12 @@ const ScreenMainMenu = struct {
 
         rl.clearBackground(bg_color);
 
-        rl.drawTextEx(game.font_title, "Test", rl.Vector2.init(20, 20), 40, 4, rl.Color.white);
+        // what are we actually calling this game?
+        rl.drawTextEx(game.font_title, "Bug Defenders", rl.Vector2.init(480, 30), 40, 4, rl.Color.white);
 
-        if (rlg.button(.{ .x = 100, .y = 100, .width = 400, .height = 200 }, "Play")) {
+        // TODO: the play button and the title text don't scale with window resizes
+        // weirdly, textures do, though?
+        if (rlg.button(.{ .x = 485, .y = 480, .width = 300, .height = 150 }, "Play")) {
             game.screen_state = .{ .battle = .{} };
         }
     }
