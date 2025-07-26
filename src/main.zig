@@ -41,7 +41,46 @@ pub fn main() anyerror!void {
     }
 }
 
-const Cpu = struct {};
+const BugKind = enum {
+    nullptr_deref,
+    stack_overflow,
+    infinite_loop,
+};
+
+const Condition = union(enum) {
+    always,
+    memory_leak: f32, // Health percentage, ram<0.25 or ram<0.5 (randomized)
+    bug: BugKind, // Against this specific enemy type
+    idle: f32, // Idle time in seconds, 1s-2s (randomized)
+};
+
+const Instruction = struct {
+    condition: Condition,
+    opcode: Opcode,
+
+    const Opcode = union(enum) {
+        sleep: f32, // Slows enemies (multiplier of enemy speed, 0.5-0.9 randomized)
+        prefetch: f32, // Deals more damage (multiplier of cache size, 1.5-2 randomized)
+        overclock: f32, // Faster firerate (multiplier of clock speed, 1.1-1.5 randomized)
+    };
+};
+
+const Cpu = struct {
+    clock_speed: f32 = 1, // Fire rate, every how many seconds to fire
+    cache_size: f32 = 1, // Cache size, damage dealt
+    debugs: u32 = 0, // How many bugs were killed
+    instructions: []Instruction, // modifiers
+
+    fn cores(self: Cpu) u32 {
+        return switch (self.debugs) {
+            0...10 => 1,
+            10...25 => 2,
+            25...50 => 3,
+            50...100 => 4,
+            else => 5,
+        };
+    }
+};
 
 const Cell = union(enum) {
     none,
@@ -95,24 +134,41 @@ const Wave = struct {
     }
 };
 
+const TextureKind = enum {
+    socket,
+    lane,
+};
+
 const Game = struct {
     global_arena: std.heap.ArenaAllocator,
     frame_arena: std.heap.ArenaAllocator,
 
-    texture_map: std.AutoHashMap(Cell, rl.Texture2D),
+    texture_map: std.AutoHashMap(TextureKind, rl.Texture2D),
+
+    font_title: rl.Font,
+    font_normal: rl.Font,
 
     camera: rl.Camera2D,
     wave: Wave,
 
+    screen_state: union(enum) {
+        main: ScreenMainMenu,
+        battle: ScreenBattle,
+    },
+
     fn init() Game {
         var global_arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
         const ga = global_arena.allocator();
-        var texture_map = std.AutoHashMap(Cell, rl.Texture2D).init(ga);
+        var texture_map = std.AutoHashMap(TextureKind, rl.Texture2D).init(ga);
 
-        const lane = rl.loadTexture("assets/socket.png") catch unreachable;
-        const socket = rl.loadTexture("assets/lane.png") catch unreachable;
+        const lane = rl.loadTexture("assets/img/socket.png") catch unreachable;
+
+        const socket = rl.loadTexture("assets/img/lane.png") catch unreachable;
         texture_map.put(.socket, lane) catch unreachable;
         texture_map.put(.lane, socket) catch unreachable;
+
+        const font_title = rl.loadFont("assets/font/DepartureMonoNerdFontMono-Regular.otf") catch unreachable;
+        const font_normal = rl.loadFont("assets/font/GohuFont14NerdFontMono-Regular.ttf") catch unreachable;
 
         return .{
             .camera = .{
@@ -128,6 +184,11 @@ const Game = struct {
             .frame_arena = std.heap.ArenaAllocator.init(std.heap.page_allocator),
             .wave = .init(),
             .texture_map = texture_map,
+            .font_title = font_title,
+            .font_normal = font_normal,
+            .screen_state = .{
+                .main = .{},
+            },
         };
     }
 
@@ -148,9 +209,57 @@ const Game = struct {
     }
 
     fn render(self: *Game) void {
-        const a = self.frame_arena.allocator();
-        const map = self.wave.map;
-        const camera = self.camera;
+        switch (self.screen_state) {
+            .main => self.renderMain(),
+            .wave => self.renderWave(),
+        }
+    }
+
+    fn updateCamera(self: *Game) void {
+        screenWidth = rl.getScreenWidth();
+        screenHeight = rl.getScreenHeight();
+
+        self.camera.offset = .{
+            .x = @as(f32, @floatFromInt(screenWidth)) / 2,
+            .y = @as(f32, @floatFromInt(screenHeight)) / 2,
+        };
+
+        self.camera.target = .{
+            .x = world_width / 2.0,
+            .y = world_height / 2.0,
+        };
+
+        // Take the average between the ratios
+        // This avoids "cheating" by changing the ratio to an extreme value
+        // in order to see more terrain in a certain axis
+        const width_ratio = @as(f32, @floatFromInt(screenWidth)) / world_width;
+        const height_ratio = @as(f32, @floatFromInt(screenHeight)) / world_height;
+        self.camera.zoom = (width_ratio + height_ratio) / 2;
+    }
+};
+
+const ScreenMainMenu = struct {
+    fn update(self: *ScreenMainMenu, game: *Game) void {
+        _ = self;
+        _ = game;
+    }
+
+    fn render(self: *ScreenMainMenu, game: *Game) void {
+        _ = self;
+        _ = game;
+    }
+};
+
+const ScreenBattle = struct {
+    fn update(self: *ScreenBattle, game: *Game) void {
+        _ = self;
+        _ = game;
+    }
+
+    fn render(self: *ScreenBattle, game: *Game) void {
+        const a = game.frame_arena.allocator();
+        const map = game.wave.map;
+        const camera = game.camera;
 
         rl.beginDrawing();
         defer rl.endDrawing();
@@ -163,7 +272,7 @@ const Game = struct {
 
             for (0..map.len) |y| {
                 for (0..map[0].len) |x| {
-                    drawCell(self, x, y);
+                    self.drawCell(game, x, y);
                 }
             }
         }
@@ -193,50 +302,42 @@ const Game = struct {
         ,
             .{ rl.getFPS(), screenWidth, screenHeight, world_width, world_height, cell_size },
         ) catch return;
+
         rl.drawText(debug_info, 20, 20, font_size, .black);
     }
 
-    fn updateCamera(self: *Game) void {
-        screenWidth = rl.getScreenWidth();
-        screenHeight = rl.getScreenHeight();
+    fn drawCell(self: *ScreenBattle, game: *Game, x: usize, y: usize) void {
+        _ = self;
 
-        self.camera.offset = .{
-            .x = @as(f32, @floatFromInt(screenWidth)) / 2,
-            .y = @as(f32, @floatFromInt(screenHeight)) / 2,
-        };
-        self.camera.target = .{
-            .x = world_width / 2.0,
-            .y = world_height / 2.0,
-        };
-
-        // Take the average between the ratios
-        // This avoids "cheating" by changing the ratio to an extreme value
-        // in order to see more terrain in a certain axis
-        const width_ratio = @as(f32, @floatFromInt(screenWidth)) / world_width;
-        const height_ratio = @as(f32, @floatFromInt(screenHeight)) / world_height;
-        self.camera.zoom = (width_ratio + height_ratio) / 2;
-    }
-
-    fn drawCell(self: *Game, x: usize, y: usize) void {
-        switch (self.wave.map[y][x]) {
+        switch (game.wave.map[y][x]) {
             .none => return,
             .socket => {
-                const texture = self.texture_map.get(.socket).?;
+                const texture = game.texture_map.get(.socket).?;
                 rl.drawTexture(texture, @intCast(x * cell_size), @intCast(y * cell_size), rl.Color.white);
             },
             .lane => {
-                const texture = self.texture_map.get(.lane).?;
+                const texture = game.texture_map.get(.lane).?;
 
-                const lane_left = self.wave.get(x - 1, y).isLaneConnected();
-                const lane_right = self.wave.get(x + 1, y).isLaneConnected();
-                const lane_top = self.wave.get(x, y - 1).isLaneConnected();
-                const lane_bottom = self.wave.get(x, y + 1).isLaneConnected();
+                const lane_left = game.wave.get(x - 1, y).isLaneConnected();
+                const lane_right = game.wave.get(x + 1, y).isLaneConnected();
+                const lane_top = game.wave.get(x, y - 1).isLaneConnected();
+                const lane_bottom = game.wave.get(x, y + 1).isLaneConnected();
 
                 var offset: f32 = undefined;
+                // Choose the correct sprite
                 if (lane_top and lane_left) {
                     offset = 3;
+                } else if (lane_top and lane_right) {
+                    offset = 2;
+                } else if (lane_bottom and lane_left) {
+                    offset = 5;
+                } else if (lane_bottom and lane_right) {
+                    offset = 4;
+                } else if (lane_left or lane_right) {
+                    offset = 0;
+                } else if (lane_top or lane_bottom) {
+                    offset = 1;
                 }
-                // TODO(kyren): do the rest
 
                 rl.drawTextureRec(
                     texture,
