@@ -12,8 +12,8 @@ const bg_color = rl.Color.init(0x20, 0x2e, 0x37, 0xFF);
 
 const debug = false;
 
-var screenWidth: i32 = 1280;
-var screenHeight: i32 = 720;
+var screen_width: i32 = 1280;
+var screen_height: i32 = 720;
 
 const image_assets = [_][]const u8{
     "",
@@ -23,9 +23,9 @@ pub fn main() anyerror!void {
     // Initialization
     //--------------------------------------------------------------------------------------
 
-    rl.initWindow(screenWidth, screenHeight, "Hackathon");
+    rl.initWindow(screen_width, screen_height, "Hackathon");
     defer rl.closeWindow(); // Close window and OpenGL context
-    rl.setWindowState(.{ .window_resizable = true });
+    rl.setWindowState(.{ .window_resizable = false });
 
     rl.setTargetFPS(60); // Set our game to run at 60 frames-per-second
     rl.setExitKey(.caps_lock);
@@ -418,6 +418,8 @@ const TextureKind = enum {
     bug_null,
     bug_while,
     bug_stackoverflow,
+    transistor,
+    cpu_pins,
 };
 
 const Game = struct {
@@ -447,6 +449,8 @@ const Game = struct {
         const bug_null = rl.loadTexture("assets/img/nullptr-deref.png") catch unreachable;
         const bug_while = rl.loadTexture("assets/img/while1.png") catch unreachable;
         const ram = rl.loadTexture("assets/img/ram.png") catch unreachable;
+        const transistor = rl.loadTexture("assets/img/transistor.png") catch unreachable;
+        const cpu_pins = rl.loadTexture("assets/img/cpu_pins.png") catch unreachable;
         texture_map.put(.socket, socket) catch unreachable;
         texture_map.put(.lane, lane) catch unreachable;
         texture_map.put(.ai, ai) catch unreachable;
@@ -454,6 +458,8 @@ const Game = struct {
         texture_map.put(.bug_stackoverflow, bug_so) catch unreachable;
         texture_map.put(.bug_while, bug_while) catch unreachable;
         texture_map.put(.ram, ram) catch unreachable;
+        texture_map.put(.transistor, transistor) catch unreachable;
+        texture_map.put(.cpu_pins, cpu_pins) catch unreachable;
 
         const font_title = rl.loadFontEx("assets/font/DepartureMonoNerdFontMono-Regular.otf", 80, null) catch unreachable;
         const font_normal = rl.loadFontEx("assets/font/GohuFont14NerdFontMono-Regular.ttf", 80, null) catch unreachable;
@@ -527,11 +533,11 @@ const ScreenMainMenu = struct {
             .camera = .{
                 .target = .{ .x = 128, .y = 128 },
                 .offset = .{
-                    .x = @as(f32, @floatFromInt(screenWidth)) / 2,
-                    .y = @as(f32, @floatFromInt(screenHeight)) / 2,
+                    .x = @as(f32, @floatFromInt(screen_width)) / 2,
+                    .y = @as(f32, @floatFromInt(screen_height)) / 2,
                 },
                 .rotation = 0,
-                .zoom = @as(f32, @floatFromInt(screenHeight)) / world_height,
+                .zoom = @as(f32, @floatFromInt(screen_height)) / world_height,
             },
         };
     }
@@ -565,12 +571,12 @@ const ScreenMainMenu = struct {
     }
 
     fn updateCamera(self: *ScreenMainMenu) void {
-        screenWidth = rl.getScreenWidth();
-        screenHeight = rl.getScreenHeight();
+        screen_width = rl.getScreenWidth();
+        screen_height = rl.getScreenHeight();
 
         self.camera.offset = .{
-            .x = @as(f32, @floatFromInt(screenWidth)) / 2,
-            .y = @as(f32, @floatFromInt(screenHeight)) / 2,
+            .x = @as(f32, @floatFromInt(screen_width)) / 2,
+            .y = @as(f32, @floatFromInt(screen_height)) / 2,
         };
 
         self.camera.target = .{
@@ -581,8 +587,8 @@ const ScreenMainMenu = struct {
         // Take the average between the ratios
         // This avoids "cheating" by changing the ratio to an extreme value
         // in order to see more terrain in a certain axis
-        const width_ratio = @as(f32, @floatFromInt(screenWidth)) / world_width;
-        const height_ratio = @as(f32, @floatFromInt(screenHeight)) / world_height;
+        const width_ratio = @as(f32, @floatFromInt(screen_width)) / world_width;
+        const height_ratio = @as(f32, @floatFromInt(screen_height)) / world_height;
         self.camera.zoom = (width_ratio + height_ratio) / 2;
     }
 };
@@ -591,6 +597,8 @@ const ScreenBattle = struct {
     camera: rl.Camera2D,
     wave: Wave,
     ram: f32, // health of the player
+    transistors: f32 = 0,
+
     const max_ram = 100;
 
     fn init() ScreenBattle {
@@ -599,13 +607,14 @@ const ScreenBattle = struct {
             .camera = .{
                 .target = .{ .x = 128, .y = 128 },
                 .offset = .{
-                    .x = @as(f32, @floatFromInt(screenWidth)) / 2,
-                    .y = @as(f32, @floatFromInt(screenHeight)) / 2,
+                    .x = @as(f32, @floatFromInt(screen_width)) / 2,
+                    .y = @as(f32, @floatFromInt(screen_height)) / 2,
                 },
                 .rotation = 0,
-                .zoom = @as(f32, @floatFromInt(screenHeight)) / world_height,
+                .zoom = @as(f32, @floatFromInt(screen_height)) / world_height,
             },
             .ram = max_ram,
+            .transistors = 100,
         };
     }
 
@@ -654,12 +663,12 @@ const ScreenBattle = struct {
     }
 
     fn updateCamera(self: *ScreenBattle) void {
-        screenWidth = rl.getScreenWidth();
-        screenHeight = rl.getScreenHeight();
+        screen_width = rl.getScreenWidth();
+        screen_height = rl.getScreenHeight();
 
         self.camera.offset = .{
-            .x = @as(f32, @floatFromInt(screenWidth)) / 2,
-            .y = @as(f32, @floatFromInt(screenHeight)) / 2,
+            .x = @as(f32, @floatFromInt(screen_width)) / 2,
+            .y = @as(f32, @floatFromInt(screen_height)) / 2,
         };
 
         self.camera.target = .{
@@ -670,8 +679,8 @@ const ScreenBattle = struct {
         // Take the average between the ratios
         // This avoids "cheating" by changing the ratio to an extreme value
         // in order to see more terrain in a certain axis
-        const width_ratio = @as(f32, @floatFromInt(screenWidth)) / world_width;
-        const height_ratio = @as(f32, @floatFromInt(screenHeight)) / world_height;
+        const width_ratio = @as(f32, @floatFromInt(screen_width)) / world_width;
+        const height_ratio = @as(f32, @floatFromInt(screen_height)) / world_height;
         self.camera.zoom = (width_ratio + height_ratio) / 2;
     }
 
@@ -709,44 +718,83 @@ const ScreenBattle = struct {
                     rl.Color.white,
                 );
             }
+
+            const font_size = 24;
+
+            const transistor_texture = game.texture_map.get(.transistor).?;
+            rl.drawTexture(transistor_texture, 0, cell_size / 4, rl.Color.white);
+
+            const transistors_count = std.fmt.allocPrintZ(a, "{d}", .{self.transistors}) catch unreachable;
+            rl.drawTextEx(
+                game.font_title,
+                transistors_count,
+                .{ .x = cell_size, .y = (cell_size + font_size) / 4 },
+                font_size,
+                1,
+                .white,
+            );
+
+            const offset = world_height - cell_size;
+            const cpu_texture = game.texture_map.get(.cpu_pins).?;
+            rl.drawTexture(cpu_texture, 0, offset, rl.Color.white);
+            rl.drawTextureEx(
+                transistor_texture,
+                .{ .x = cell_size + cell_size / 3, .y = offset + 6 },
+                0,
+                0.5,
+                rl.Color.white,
+            );
+
+            rl.drawTextEx(
+                game.font_title,
+                "= 100",
+                .{ .x = cell_size, .y = offset + (font_size) / 8 },
+                font_size,
+                1,
+                .white,
+            );
         }
 
-        rl.drawRectangle(
-            10,
-            10,
-            @divTrunc(screenWidth, 5),
-            @divTrunc(screenHeight, 5),
-            rl.fade(rl.Color.white, 0.6),
-        );
-        rl.drawRectangleLines(
-            10,
-            10,
-            @divTrunc(screenWidth, 5),
-            @divTrunc(screenHeight, 5),
-            rl.Color.black,
-        );
+        if (debug) {
+            rl.drawRectangle(
+                10,
+                10,
+                @divTrunc(screen_width, 5),
+                @divTrunc(screen_height, 5),
+                rl.fade(rl.Color.white, 0.6),
+            );
+            rl.drawRectangleLines(
+                10,
+                10,
+                @divTrunc(screen_width, 5),
+                @divTrunc(screen_height, 5),
+                rl.Color.black,
+            );
 
-        const font_size = @divTrunc(screenWidth, 80);
+            const debug_font_size = @divTrunc(screen_width, 80);
 
-        const debug_info = std.fmt.allocPrintZ(a,
-            \\FPS: {}
-            \\Screen: {}x{}
-            \\World: {}x{} ({})
-            \\Bugs: {}
-            \\Ram: {d}/{d}
-        , .{
-            rl.getFPS(),
-            screenWidth,
-            screenHeight,
-            world_width,
-            world_height,
-            cell_size,
-            self.wave.bugs.items.len,
-            self.ram,
-            max_ram,
-        }) catch return;
+            const debug_info = std.fmt.allocPrintZ(a,
+                \\FPS: {}
+                \\Screen: {}x{}
+                \\World: {}x{} ({})
+                \\Bugs: {}
+                \\Ram: {d}/{d}
+                \\Transistors: {d}
+            , .{
+                rl.getFPS(),
+                screen_width,
+                screen_height,
+                world_width,
+                world_height,
+                cell_size,
+                self.wave.bugs.items.len,
+                self.ram,
+                max_ram,
+                self.transistors,
+            }) catch return;
 
-        rl.drawText(debug_info, 20, 20, font_size, .black);
+            rl.drawText(debug_info, 20, 20, debug_font_size, .black);
+        }
     }
 
     fn drawCell(self: *ScreenBattle, game: *Game, x: usize, y: usize) void {
