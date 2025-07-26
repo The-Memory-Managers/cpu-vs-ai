@@ -76,10 +76,10 @@ const Bug = struct {
 
     pub fn update(self: *Bug, delta_time: f32, wave: *Wave) void {
         self.animation_time += delta_time;
-        // if (self.animation_time > animation_switch_threshold) {
-        //     self.animation_time = 0;
-        //     self.animation_state = @mod((self.animation_state + 1), animationCount(self.kind));
-        // }
+        if (self.animation_time > animation_switch_threshold) {
+            self.animation_time = 0;
+            self.animation_state = @mod((self.animation_state + 1), animationCount(self.kind));
+        }
 
         var velocity: rl.Vector2 = self.target.subtract(self.position);
         velocity = velocity.normalize().scale(speed(self.kind));
@@ -252,7 +252,7 @@ const Wave = struct {
                 .from_time_s = 0,
                 .to_time_s = 10,
                 .bugs = .{
-                    .{ .spawn_interval = 1 },
+                    .{ .spawn_interval = 3 },
                     .{ .spawn_interval = 0 },
                     .{ .spawn_interval = 0 },
                 },
