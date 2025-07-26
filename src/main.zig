@@ -215,9 +215,9 @@ const Cpu = struct {
 
     fn cores(self: Cpu) u32 {
         return switch (self.debugs) {
-            0...10 => 1,
-            10...25 => 2,
-            25...50 => 3,
+            0...9 => 1,
+            10...24 => 2,
+            25...49 => 3,
             50...100 => 4,
             else => 5,
         };
@@ -287,7 +287,7 @@ const Wave = struct {
                 .bugs = .{
                     .{ .spawn_interval = 0 },
                     .{ .spawn_interval = 0 },
-                    .{ .spawn_interval = 1 },
+                    .{ .spawn_interval = 0.5 },
                 },
             }) catch unreachable;
             // spawn_rules.append(.{
@@ -756,19 +756,32 @@ const ScreenBattle = struct {
                     const cell = self.wave.get(x, y);
                     switch (cell) {
                         .cpu => |cpu| {
-                            if (debug) {
-                                const cpu_center = rl.Vector2.init(
-                                    @as(f32, @floatFromInt(x)) * cell_size + cell_size / 2,
-                                    @as(f32, @floatFromInt(y)) * cell_size + cell_size / 2,
-                                );
-                                rl.drawCircleLinesV(cpu_center, cpu.cache_size * cell_size, rl.Color.green);
-                            }
+                            const cpu_center = rl.Vector2.init(
+                                @as(f32, @floatFromInt(x)) * cell_size + cell_size / 2,
+                                @as(f32, @floatFromInt(y)) * cell_size + cell_size / 2,
+                            );
 
+                            var count: u32 = 0;
+                            const radius = cpu.cache_size * cell_size;
                             for (self.wave.bugs.items) |bug| {
                                 if (bug.dead) {
                                     continue;
                                 }
-                                self.drawLazer(@floatFromInt(x), @floatFromInt(y), cpu, bug);
+                                if (count >= cpu.cores()) {
+                                    break;
+                                }
+
+                                const distance = cpu_center.subtract(bug.position).length();
+                                if (distance > radius) {
+                                    continue;
+                                }
+
+                                rl.drawLineEx(cpu_center, bug.position, cpu.bus_width, rl.Color.red);
+                                count += 1;
+                            }
+
+                            if (debug) {
+                                rl.drawCircleLinesV(cpu_center, cpu.cache_size * cell_size, rl.Color.green);
                             }
                         },
                         else => continue,
@@ -871,20 +884,6 @@ const ScreenBattle = struct {
 
             rl.drawText(debug_info, 20, 20, debug_font_size, .black);
         }
-    }
-
-    fn drawLazer(self: *ScreenBattle, x: f32, y: f32, cpu: Cpu, bug: Bug) void {
-        const cpu_center = rl.Vector2.init(x * cell_size + cell_size / 2, y * cell_size + cell_size / 2);
-        const vector = cpu_center.subtract(bug.position);
-        const distance = vector.length();
-        _ = self;
-
-        const radius = cpu.cache_size * cell_size;
-        if (distance > radius) {
-            return;
-        }
-
-        rl.drawLineEx(cpu_center, bug.position, cpu.bus_width, rl.Color.red);
     }
 
     fn drawCell(self: *ScreenBattle, game: *Game, x: usize, y: usize) void {
