@@ -54,6 +54,16 @@ pub fn main() anyerror!void {
     }
 }
 
+/// Gets the mouse position, scaled by camera zoom and clamped to fix issues on MacOS
+fn getMousePos(camera: *rl.Camera2D) rl.Vector2 {
+    const msp = rl.getMousePosition().scale(1 / camera.zoom);
+
+    return .{
+        .x = @max(msp.x, 0),
+        .y = @max(msp.y, 0),
+    };
+}
+
 const BugKind = enum(u8) {
     nullptr_deref = 0,
     stack_overflow = 1,
@@ -688,7 +698,7 @@ const ScreenMainMenu = struct {
             ScreenMainMenu.start_button_size,
         );
 
-        const msp = rl.getMousePosition().scale(1 / self.camera.zoom);
+        const msp = getMousePos(&self.camera);
 
         const ms_rect = rl.Rectangle.init(msp.x, msp.y, 1, 1);
 
@@ -770,11 +780,10 @@ const ScreenBattle = struct {
     fn handlePlayerInput(self: *ScreenBattle, game: *Game, dt: f32) void {
         _ = dt;
 
-        const msp = rl.getMousePosition().scale(1 / self.camera.zoom);
+        const msp = getMousePos(&self.camera);
 
-        // the mouse position can go into the negatives on MacOS, so we need to clamp it
-        const mx: usize = @intFromFloat(@max(msp.x / cell_size, 0));
-        const my: usize = @intFromFloat(@max(msp.y / cell_size, 0));
+        const mx: usize = @intFromFloat(msp);
+        const my: usize = @intFromFloat(msp);
 
         if (rl.isMouseButtonPressed(rl.MouseButton.left)) {
             if (self.wave.get(mx, my) == .lane and edit) {
@@ -991,7 +1000,7 @@ const ScreenBattle = struct {
             );
 
             if (self.popup) {
-                const msp = rl.getMousePosition().scale(1 / self.camera.zoom);
+                const msp = getMousePos(&self.camera);
                 const upgrade_texture = game.texture_map.get(.upgrade_popup).?;
                 const scale = 2;
                 const pos = msp.subtract(.{ .x = cell_size / 2 * scale, .y = cell_size * scale });
