@@ -26,9 +26,9 @@ pub fn main() anyerror!void {
     // Initialization
     //--------------------------------------------------------------------------------------
 
+    rl.setConfigFlags(.{ .window_resizable = false, .window_highdpi = true });
     rl.initWindow(screen_width, screen_height, "Hackathon");
     defer rl.closeWindow(); // Close window and OpenGL context
-    rl.setWindowState(.{ .window_resizable = false });
 
     rl.initAudioDevice();
     defer rl.closeAudioDevice();
@@ -771,8 +771,10 @@ const ScreenBattle = struct {
         _ = dt;
 
         const msp = rl.getMousePosition().scale(1 / self.camera.zoom);
-        const mx: usize = @intFromFloat(msp.x / cell_size);
-        const my: usize = @intFromFloat(msp.y / cell_size);
+
+        // the mouse position can go into the negatives on MacOS, so we need to clamp it
+        const mx: usize = @intFromFloat(@max(msp.x / cell_size, 0));
+        const my: usize = @intFromFloat(@max(msp.y / cell_size, 0));
 
         if (rl.isMouseButtonPressed(rl.MouseButton.left)) {
             if (self.wave.get(mx, my) == .lane and edit) {
