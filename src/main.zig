@@ -55,13 +55,59 @@ pub fn main() anyerror!void {
 }
 
 /// Gets the mouse position, scaled by camera zoom and clamped to fix issues on MacOS
-fn getMousePos(camera: *rl.Camera2D) rl.Vector2 {
+fn getMousePos(camera: *const rl.Camera2D) rl.Vector2 {
     const msp = rl.getMousePosition().scale(1 / camera.zoom);
 
     return .{
         .x = @max(msp.x, 0),
         .y = @max(msp.y, 0),
     };
+}
+
+fn textureButton(camera: *const rl.Camera2D, texture: rl.Texture2D, rect: rl.Rectangle, source: ?rl.Rectangle) bool {
+    const msp = getMousePos(camera);
+
+    rl.drawTextureRec(
+        texture,
+        source orelse .{
+            .x = 0,
+            .y = 0,
+            .width = rect.width,
+            .height = rect.height,
+        },
+        .{
+            .x = rect.x,
+            .y = rect.y,
+        },
+        rl.Color.white,
+    );
+
+    const ms_rect = rl.Rectangle.init(msp.x, msp.y, 1, 1);
+
+    return rect.checkCollision(ms_rect) and rl.isMouseButtonPressed(.left);
+}
+
+fn labelButton(
+    camera: *const rl.Camera2D,
+    text: [:0]const u8,
+    rect: rl.Rectangle,
+    opt: struct {
+        font: rl.Font,
+        font_size: f32,
+        spacing: f32,
+        text_color: rl.Color = rl.Color.white,
+        bkgd_color: rl.Color = rl.Color.gray,
+    },
+) bool {
+    const msp = getMousePos(camera);
+
+    rl.drawRectangleRec(rect, opt.bkgd_color);
+
+    rl.drawTextEx(opt.font, text, rl.Vector2.init(rect.x, rect.y), opt.font_size, opt.spacing, opt.text_color);
+
+    const ms_rect = rl.Rectangle.init(msp.x, msp.y, 1, 1);
+
+    return rect.checkCollision(ms_rect) and rl.isMouseButtonPressed(.left);
 }
 
 const BugKind = enum(u8) {
@@ -623,13 +669,13 @@ const Game = struct {
 
         // TODO: find a better method of mutating the original
         switch (self.screen_state) {
-            .main => |_| {
+            .main => {
                 self.screen_state.main.update(self, dt);
             },
-            .battle => |_| {
+            .battle => {
                 self.screen_state.battle.update(self, dt);
             },
-            .gameover => |_| {
+            .gameover => {
                 self.screen_state.gameover.update(self, dt);
             },
         }
@@ -645,13 +691,13 @@ const Game = struct {
 
         // TODO: find a better method of mutating the original
         switch (self.screen_state) {
-            .main => |_| {
+            .main => {
                 self.screen_state.main.render(self);
             },
-            .battle => |_| {
+            .battle => {
                 self.screen_state.battle.render(self);
             },
-            .gameover => |_| {
+            .gameover => {
                 self.screen_state.gameover.render(self);
             },
         }
@@ -715,34 +761,16 @@ const ScreenMainMenu = struct {
 
         rl.drawTextEx(game.font_title, "AI", title_pos.add(.{ .x = 100, .y = 5 }), 22, 3, rl.Color.white);
 
-        const button_pos: rl.Vector2 = .{
-            .x = (world_width - ScreenMainMenu.start_button_size) / 2,
-            .y = (world_height - ScreenMainMenu.start_button_size) / 2 + 40,
-        };
-
-        const rect = rl.Rectangle.init(
-            button_pos.x,
-            button_pos.y,
-            ScreenMainMenu.start_button_size,
-            ScreenMainMenu.start_button_size,
-        );
-
-        const msp = getMousePos(&self.camera);
-
-        const ms_rect = rl.Rectangle.init(msp.x, msp.y, 1, 1);
-
-        self.pressed_start = rect.checkCollision(ms_rect) and rl.isMouseButtonPressed(.left);
-
-        rl.drawTextureRec(
+        self.pressed_start = textureButton(
+            &self.camera,
             game.texture_map.get(.power_button).?,
-            .{
-                .x = 0,
-                .y = 0,
-                .width = ScreenMainMenu.start_button_size,
-                .height = ScreenMainMenu.start_button_size,
-            },
-            button_pos,
-            rl.Color.white,
+            rl.Rectangle.init(
+                (world_width - ScreenMainMenu.start_button_size) / 2,
+                (world_height - ScreenMainMenu.start_button_size) / 2 + 40,
+                ScreenMainMenu.start_button_size,
+                ScreenMainMenu.start_button_size,
+            ),
+            null,
         );
     }
 
@@ -774,7 +802,8 @@ const ScreenGameOver = struct {
     pressed_retry: bool = false,
     pressed_menu: bool = false,
 
-    const button_size: f32 = @floatFromInt(cell_size);
+    const button_menu_width: f32 = @floatFromInt(cell_size * 3);
+    const button_menu_height: f32 = @floatFromInt(cell_size);
 
     fn init() ScreenGameOver {
         return .{
@@ -828,14 +857,29 @@ const ScreenGameOver = struct {
         rl.beginMode2D(self.camera);
         defer rl.endMode2D();
 
+        // TODO: these labels are badly positioned
+
         // get text dimensions for "Game Over" at size 22
         // imagined func: const text_dimensions = rl.getTextSizeEx(game.font_title, "Game Over", 22);
         const td = rl.measureTextEx(game.font_title, "Game Over", 22, 1.0);
         std.log.info("Text dimensions: x={}, y={}, world_width={}, world_height={}", .{ td.x, td.y, world_width, world_height });
         rl.drawTextEx(game.font_title, "Game Over", .{ .x = (world_width - td.x) / 2, .y = (world_height - td.y) / 2 }, 22, 1.0, rl.Color.red);
 
-        //const msp = getMousePos(&self.camera);
-        self.pressed_menu = rl.isMouseButtonPressed(.left);
+        self.pressed_menu = labelButton(
+            &self.camera,
+            "Back to main menu",
+            rl.Rectangle.init(
+                (world_width - ScreenGameOver.button_menu_width) / 2,
+                (world_height - ScreenGameOver.button_menu_height) / 2 + 40,
+                ScreenGameOver.button_menu_width,
+                ScreenGameOver.button_menu_height,
+            ),
+            .{
+                .font = game.font_title,
+                .font_size = 10,
+                .spacing = 5,
+            },
+        );
     }
 };
 
