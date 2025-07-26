@@ -62,6 +62,7 @@ const Bug = struct {
     target: rl.Vector2, // Center of next cell
     animation_time: f32 = 0,
     animation_state: f32 = 0,
+    dead: bool = false,
 
     pub fn init(kind: BugKind, position: rl.Vector2) Bug {
         return Bug{
@@ -73,7 +74,7 @@ const Bug = struct {
         };
     }
 
-    pub fn update(self: *Bug, delta_time: f32, wave: *Wave) void {
+    pub fn update(self: *Bug, delta_time: f32, wave: *Wave, ram: *f32) void {
         self.animation_time += delta_time;
         if (self.animation_time > animationSwitchThreshold(self.kind)) {
             self.animation_time = 0;
@@ -133,6 +134,11 @@ const Bug = struct {
 
             self.previous = self.target;
             self.target = target;
+
+            if (wave.get(target_grid_x + 1, target_grid_y) == .ram) {
+                ram.* = @max(ram.* - self.damage(), 0);
+                self.dead = true;
+            }
         }
     }
 
@@ -217,12 +223,14 @@ const Cell = union(enum) {
     socket,
     cpu: Cpu,
     ai,
+    ram,
     lane,
 
     fn isLaneConnected(self: Cell) bool {
         return switch (self) {
             .lane => true,
             .ai => true,
+            .ram => true,
             else => false,
         };
     }
@@ -310,6 +318,7 @@ const Wave = struct {
         }
 
         wave.map[height_middle][0] = .ai;
+        wave.map[height_middle][cells_width - 1] = .ram;
         for (1..cells_width - 1) |x| {
             wave.map[height_middle][x] = .lane;
         }
@@ -317,7 +326,7 @@ const Wave = struct {
         return wave;
     }
 
-    fn update(self: *Wave, delta_time: f32) void {
+    fn update(self: *Wave, delta_time: f32, ram: *f32) void {
         // TODO: quite a bit of logic here
         self.time_since_start += delta_time;
 
@@ -343,7 +352,10 @@ const Wave = struct {
         }
 
         for (self.bugs.items) |*bug| {
-            bug.update(delta_time, self);
+            if (bug.dead) {
+                continue;
+            }
+            bug.update(delta_time, self, ram);
         }
     }
 
@@ -363,6 +375,7 @@ const TextureKind = enum {
     socket,
     lane,
     ai,
+    ram,
     bug_null,
     bug_while,
     bug_stackoverflow,
@@ -394,12 +407,14 @@ const Game = struct {
         const bug_so = rl.loadTexture("assets/img/stackoverflow.png") catch unreachable;
         const bug_null = rl.loadTexture("assets/img/nullptr-deref.png") catch unreachable;
         const bug_while = rl.loadTexture("assets/img/while1.png") catch unreachable;
+        const ram = rl.loadTexture("assets/img/ram.png") catch unreachable;
         texture_map.put(.socket, socket) catch unreachable;
         texture_map.put(.lane, lane) catch unreachable;
         texture_map.put(.ai, ai) catch unreachable;
         texture_map.put(.bug_null, bug_null) catch unreachable;
         texture_map.put(.bug_stackoverflow, bug_so) catch unreachable;
         texture_map.put(.bug_while, bug_while) catch unreachable;
+        texture_map.put(.ram, ram) catch unreachable;
 
         const font_title = rl.loadFontEx("assets/font/DepartureMonoNerdFontMono-Regular.otf", 80, null) catch unreachable;
         const font_normal = rl.loadFontEx("assets/font/GohuFont14NerdFontMono-Regular.ttf", 80, null) catch unreachable;
@@ -494,6 +509,8 @@ const ScreenMainMenu = struct {
 const ScreenBattle = struct {
     camera: rl.Camera2D,
     wave: Wave,
+    ram: f32, // health of the player
+    const max_ram = 100;
 
     fn init() ScreenBattle {
         return .{
@@ -507,13 +524,14 @@ const ScreenBattle = struct {
                 .rotation = 0,
                 .zoom = @as(f32, @floatFromInt(screenHeight)) / world_height,
             },
+            .ram = max_ram,
         };
     }
 
     fn update(self: *ScreenBattle, game: *Game, dt: f32) void {
         _ = game;
 
-        self.wave.update(dt);
+        self.wave.update(dt, &self.ram);
 
         self.updateCamera();
     }
@@ -559,6 +577,9 @@ const ScreenBattle = struct {
             const half_cell = cell_size / 2;
 
             for (self.wave.bugs.items) |bug| {
+                if (bug.dead) {
+                    continue;
+                }
                 const texture = switch (bug.kind) {
                     .nullptr_deref => game.texture_map.get(.bug_null).?,
                     .stack_overflow => game.texture_map.get(.bug_stackoverflow).?,
@@ -591,15 +612,23 @@ const ScreenBattle = struct {
 
         const font_size = @divTrunc(screenWidth, 80);
 
-        const debug_info = std.fmt.allocPrintZ(
-            a,
+        const debug_info = std.fmt.allocPrintZ(a,
             \\FPS: {}
             \\Screen: {}x{}
             \\World: {}x{} ({})
             \\Bugs: {}
-        ,
-            .{ rl.getFPS(), screenWidth, screenHeight, world_width, world_height, cell_size, self.wave.bugs.items.len },
-        ) catch return;
+            \\Ram: {d}/{d}
+        , .{
+            rl.getFPS(),
+            screenWidth,
+            screenHeight,
+            world_width,
+            world_height,
+            cell_size,
+            self.wave.bugs.items.len,
+            self.ram,
+            max_ram,
+        }) catch return;
 
         rl.drawText(debug_info, 20, 20, font_size, .black);
     }
@@ -637,7 +666,7 @@ const ScreenBattle = struct {
 
                 rl.drawTextureRec(
                     texture,
-                    .{ .x = 0, .y = offset * cell_size, .width = cell_size, .height = cell_size },
+                    .{ .x = offset * cell_size, .y = 0, .width = cell_size, .height = cell_size },
                     .{ .x = @floatFromInt(x * cell_size), .y = @floatFromInt(y * cell_size) },
                     rl.Color.white,
                 );
@@ -646,6 +675,18 @@ const ScreenBattle = struct {
             .ai => {
                 const texture = game.texture_map.get(.ai).?;
                 rl.drawTexture(texture, @intCast(x * cell_size), @intCast(y * cell_size), rl.Color.white);
+            },
+            .ram => {
+                const texture = game.texture_map.get(.ram).?;
+
+                const offset: f32 = if (self.ram == 0) 4 else if (self.ram / max_ram > 0.75) 0 else if (self.ram / max_ram > 0.5) 1 else if (self.ram / max_ram > 0.25) 2 else 3;
+
+                rl.drawTextureRec(
+                    texture,
+                    .{ .x = offset * cell_size, .y = 0, .width = cell_size, .height = cell_size * 3 },
+                    .{ .x = @floatFromInt(x * cell_size), .y = @floatFromInt(y * cell_size - cell_size) },
+                    rl.Color.white,
+                );
             },
         }
     }
