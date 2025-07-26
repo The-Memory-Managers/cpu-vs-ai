@@ -10,6 +10,8 @@ const world_width = cells_width * cell_size;
 const world_height = cells_height * cell_size;
 const bg_color = rl.Color.init(0x20, 0x2e, 0x37, 0xFF);
 
+const debug = true;
+
 var screenWidth: i32 = 1280;
 var screenHeight: i32 = 720;
 
@@ -264,7 +266,20 @@ const Wave = struct {
 
         // This is horrible code, sorry
         var spawn_rules = std.ArrayList(SpawnRule).init(arena.allocator());
+        var map: [cells_height][cells_width]Cell = undefined;
         if (wave_number == 1) {
+            map = [_][cells_width]Cell{
+                .{ .none, .none, .none, .none, .none, .none, .none, .none, .none, .none, .none, .none, .none, .none, .none, .none },
+                .{ .none, .none, .none, .none, .none, .socket, .socket, .socket, .socket, .socket, .none, .none, .none, .none, .none, .none },
+                .{ .none, .none, .none, .none, .none, .socket, .lane, .lane, .lane, .socket, .none, .none, .none, .none, .none, .none },
+                .{ .none, .socket, .socket, .socket, .socket, .socket, .lane, .socket, .lane, .socket, .socket, .socket, .socket, .socket, .socket, .none },
+                .{ .ai, .lane, .lane, .lane, .lane, .socket, .lane, .socket, .lane, .lane, .lane, .lane, .lane, .lane, .lane, .ram },
+                .{ .none, .socket, .socket, .socket, .lane, .socket, .lane, .socket, .socket, .socket, .socket, .socket, .socket, .socket, .socket, .none },
+                .{ .none, .none, .none, .socket, .lane, .lane, .lane, .socket, .none, .none, .none, .none, .none, .none, .none, .none },
+                .{ .none, .none, .none, .socket, .socket, .socket, .socket, .socket, .none, .none, .none, .none, .none, .none, .none, .none },
+                .{ .none, .none, .none, .none, .none, .none, .none, .none, .none, .none, .none, .none, .none, .none, .none, .none },
+            };
+
             spawn_rules.append(.{
                 .from_time_s = 0,
                 .to_time_s = 10,
@@ -303,28 +318,43 @@ const Wave = struct {
             //         .{ .spawn_interval = 0.5 },
             //     },
             // }) catch unreachable;
-        } else if (wave_number == 2) {} else if (wave_number == 3) {}
+        } else if (wave_number == 2) {
+            map = .{
+                .{ .none, .none, .none, .none, .none, .none, .none, .none, .none, .none, .none, .none, .none, .none, .none, .none },
+                .{ .none, .none, .none, .socket, .socket, .socket, .socket, .socket, .socket, .socket, .none, .none, .none, .none, .none, .none },
+                .{ .none, .none, .none, .socket, .lane, .lane, .lane, .lane, .lane, .socket, .none, .none, .none, .none, .none, .none },
+                .{ .none, .socket, .socket, .socket, .lane, .socket, .socket, .socket, .lane, .socket, .socket, .socket, .socket, .socket, .socket, .none },
+                .{ .ai, .lane, .lane, .lane, .lane, .socket, .lane, .lane, .lane, .socket, .lane, .lane, .lane, .lane, .lane, .ram },
+                .{ .none, .socket, .socket, .socket, .socket, .socket, .lane, .socket, .socket, .socket, .lane, .socket, .socket, .socket, .socket, .none },
+                .{ .none, .none, .none, .none, .none, .socket, .lane, .lane, .lane, .lane, .lane, .socket, .none, .none, .none, .none },
+                .{ .none, .none, .none, .none, .none, .socket, .socket, .socket, .socket, .socket, .socket, .socket, .none, .none, .none, .none },
+                .{ .none, .none, .none, .none, .none, .none, .none, .none, .none, .none, .none, .none, .none, .none, .none, .none },
+            };
+        } else if (wave_number == 3) {
+            map = .{
+                .{ .none, .none, .none, .none, .none, .none, .none, .none, .none, .none, .none, .none, .none, .none, .none, .none },
+                .{ .none, .none, .none, .none, .none, .none, .none, .none, .none, .none, .none, .none, .none, .none, .none, .none },
+                .{ .none, .none, .none, .none, .none, .none, .none, .none, .none, .none, .none, .none, .none, .none, .none, .none },
+                .{ .none, .socket, .socket, .socket, .socket, .socket, .none, .none, .none, .none, .none, .none, .socket, .socket, .socket, .none },
+                .{ .ai, .lane, .lane, .lane, .lane, .socket, .socket, .socket, .socket, .socket, .socket, .socket, .socket, .lane, .lane, .ram },
+                .{ .none, .socket, .socket, .socket, .lane, .socket, .socket, .lane, .lane, .lane, .lane, .lane, .socket, .lane, .socket, .none },
+                .{ .none, .none, .none, .socket, .lane, .lane, .lane, .lane, .socket, .socket, .socket, .lane, .lane, .lane, .socket, .none },
+                .{ .none, .none, .none, .socket, .socket, .socket, .socket, .socket, .socket, .socket, .socket, .socket, .socket, .socket, .socket, .none },
+                .{ .none, .none, .none, .none, .none, .none, .none, .none, .none, .none, .none, .none, .none, .none, .none, .none },
+            };
+        } else {
+            unreachable;
+        }
 
         var wave = Wave{
             .arena = arena,
             .bugs = std.ArrayList(Bug).init(arena.allocator()),
             .spawn_rules = spawn_rules,
+            .map = map,
         };
-
-        for (1..cells_height - 1) |y| {
-            for (1..cells_width - 1) |x| {
-                // const is_even = (y + x) % 2 == 0;
-                if (true) {
-                    wave.map[y][x] = .socket;
-                }
-            }
-        }
 
         wave.map[height_middle][0] = .ai;
         wave.map[height_middle][cells_width - 1] = .ram;
-        for (1..cells_width - 1) |x| {
-            wave.map[height_middle][x] = .lane;
-        }
 
         return wave;
     }
@@ -435,7 +465,8 @@ const Game = struct {
             .font_title = font_title,
             .font_normal = font_normal,
             .screen_state = .{
-                .main = .init(),
+                // .main = .init(),
+                .battle = .init(),
             },
         };
     }
@@ -564,7 +595,7 @@ const ScreenBattle = struct {
 
     fn init() ScreenBattle {
         return .{
-            .wave = .init(1), // TODO: change this and move this to ScreenBattle state
+            .wave = .init(1),
             .camera = .{
                 .target = .{ .x = 128, .y = 128 },
                 .offset = .{
@@ -591,17 +622,29 @@ const ScreenBattle = struct {
     fn handlePlayerInput(self: *ScreenBattle, dt: f32) void {
         _ = dt;
 
+        const msp = rl.getMousePosition().scale(1 / self.camera.zoom);
+        const mx: usize = @intFromFloat(msp.x / cell_size);
+        const my: usize = @intFromFloat(msp.y / cell_size);
+
         if (rl.isMouseButtonPressed(rl.MouseButton.left)) {
-            const msp = rl.getMousePosition().scale(1 / self.camera.zoom);
-
-            const x: usize = @intFromFloat(msp.x / cell_size);
-            const y: usize = @intFromFloat(msp.y / cell_size);
-
-            if (self.wave.get(x, y) == .lane) {
-                self.wave.set(x, y, .socket);
-            } else if (self.wave.get(x, y) == .socket) {
-                self.wave.set(x, y, .lane);
+            if (self.wave.get(mx, my) == .lane and debug) {
+                self.wave.set(mx, my, .socket);
+            } else if (self.wave.get(mx, my) == .socket and debug) {
+                self.wave.set(mx, my, .lane);
+            } else if (self.wave.get(mx, my) == .none and debug) {
+                self.wave.set(mx, my, .socket);
             }
+        } else if (rl.isMouseButtonPressed(rl.MouseButton.right) and debug) {
+            self.wave.set(mx, my, .none);
+        }
+
+        if (rl.isKeyPressed(rl.KeyboardKey.s)) {
+            const f = std.io.getStdErr().writer();
+            std.zon.stringify.serializeArbitraryDepth(self.wave.map, .{
+                .whitespace = false,
+            }, f) catch unreachable;
+            f.writeByte('\n') catch unreachable;
+            unreachable;
         }
     }
 
