@@ -535,6 +535,7 @@ const Game = struct {
     screen_state: union(enum) {
         main: ScreenMainMenu,
         battle: ScreenBattle,
+        gameover: ScreenGameOver,
     },
 
     fn init() Game {
@@ -599,6 +600,7 @@ const Game = struct {
             .font_normal = font_normal,
             .screen_state = .{
                 .main = .init(),
+                // .gameover = .init(),
                 // .battle = .init(),
             },
         };
@@ -627,6 +629,9 @@ const Game = struct {
             .battle => |_| {
                 self.screen_state.battle.update(self, dt);
             },
+            .gameover => |_| {
+                self.screen_state.gameover.update(self, dt);
+            },
         }
     }
 
@@ -645,6 +650,9 @@ const Game = struct {
             },
             .battle => |_| {
                 self.screen_state.battle.render(self);
+            },
+            .gameover => |_| {
+                self.screen_state.gameover.render(self);
             },
         }
     }
@@ -761,6 +769,54 @@ const ScreenMainMenu = struct {
     }
 };
 
+const ScreenGameOver = struct {
+    camera: rl.Camera2D,
+    pressed_retry: bool = false,
+    pressed_menu: bool = false,
+
+    const button_size: f32 = @floatFromInt(cell_size);
+
+    fn init() ScreenGameOver {
+        return .{
+            .camera = .{
+                .target = .{ .x = 128, .y = 128 },
+                .offset = .{
+                    .x = @as(f32, @floatFromInt(screen_width)) / 2,
+                    .y = @as(f32, @floatFromInt(screen_height)) / 2,
+                },
+                .rotation = 0,
+                .zoom = @as(f32, @floatFromInt(screen_height)) / world_height,
+            },
+        };
+    }
+
+    fn update(self: *ScreenGameOver, game: *Game, dt: f32) void {
+        _ = dt;
+        if (self.pressed_retry) {
+            game.screen_state = .{ .battle = .init() };
+        }
+        if (self.pressed_menu) {
+            game.screen_state = .{ .main = .init() };
+        }
+    }
+
+    fn render(self: *ScreenGameOver, game: *Game) void {
+        rl.beginMode2D(self.camera);
+        defer rl.endMode2D();
+
+        // get text dimensions for "Game Over" at size 22
+        // imagined func: const text_dimensions = rl.getTextSizeEx(game.font_title, "Game Over", 22);
+        const td = rl.measureTextEx(game.font_title, "Game Over", 22, 1.0);
+        std.log.info("Text dimensions: x={}, y={}, world_width={}, world_height={}", .{ td.x, td.y, world_width, world_height });
+        rl.drawTextEx(game.font_title, "Game Over", .{ .x = (world_width - td.x) / 2, .y = (world_height - td.y) / 2 }, 22, 1.0, rl.Color.red);
+
+        //const msp = getMousePos(&self.camera);
+        self.pressed_menu = rl.isMouseButtonPressed(.left);
+    }
+};
+
+// TODO: ScreenVictory
+
 const ScreenBattle = struct {
     camera: rl.Camera2D,
     wave: Wave,
@@ -803,7 +859,7 @@ const ScreenBattle = struct {
 
         if (self.ram <= 0) {
             self.deinit();
-            game.screen_state = .{ .main = .init() };
+            game.screen_state = .{ .gameover = .init() };
         }
     }
 
