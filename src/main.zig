@@ -372,6 +372,12 @@ const Wave = struct {
         }
         return self.map[y][x];
     }
+
+    fn set(self: *Wave, x: usize, y: usize, cell: Cell) void {
+        if (x < cells_width and y < cells_height) {
+            self.map[y][x] = cell;
+        }
+    }
 };
 
 const TextureKind = enum {
@@ -513,6 +519,13 @@ const ScreenMainMenu = struct {
     fn render(self: *ScreenMainMenu, game: *Game) void {
         rl.beginMode2D(self.camera);
         defer rl.endMode2D();
+
+        const msp = rl.getMousePosition();
+
+        const x = msp.x / (cells_width * cells_height);
+        const y = msp.y / (cells_width * cells_height);
+
+        rl.drawRectangleRec(rl.Rectangle.init(x, y, 100, 100), rl.Color.white);
 
         // what are we actually calling this game?
         rl.drawTextEx(game.font_title, "Bug Defenders", rl.Vector2.init(495, 160), 40, 4, rl.Color.white);
