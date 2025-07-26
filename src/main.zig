@@ -10,7 +10,8 @@ const world_width = cells_width * cell_size;
 const world_height = cells_height * cell_size;
 const bg_color = rl.Color.init(0x20, 0x2e, 0x37, 0xFF);
 
-const debug = false;
+const debug = true;
+const edit = debug and false;
 
 var screen_width: i32 = 1280;
 var screen_height: i32 = 720;
@@ -164,7 +165,7 @@ const Bug = struct {
         return switch (self.kind) {
             .nullptr_deref => return 10,
             .stack_overflow => return 20,
-            .infinite_loop => return 33,
+            .infinite_loop => return 6,
             // .nullptr_deref => return 1,
             // .stack_overflow => return 2,
             // .infinite_loop => return 0.5,
@@ -175,7 +176,7 @@ const Bug = struct {
         return switch (kind) {
             .nullptr_deref => return 2,
             .stack_overflow => return 2,
-            .infinite_loop => return 6,
+            .infinite_loop => return 7,
         };
     }
 
@@ -209,7 +210,8 @@ const Instruction = struct {
 
 const Cpu = struct {
     clock_speed: f32 = 1, // Fire rate, every how many seconds to fire
-    cache_size: f32 = 1, // Cache size, damage dealt
+    bus_width: f32 = 1, // Bus width, damage dealt
+    cache_size: f32 = 1.5, // Cache size, range (distance for attack)
     debugs: u32 = 0, // How many bugs were killed
     instructions: [max_instructions]Instruction = [_]Instruction{.{}} ** max_instructions, // modifiers
     const max_instructions = 5;
@@ -288,7 +290,7 @@ const Wave = struct {
                 .bugs = .{
                     .{ .spawn_interval = 0 },
                     .{ .spawn_interval = 0 },
-                    .{ .spawn_interval = 3 },
+                    .{ .spawn_interval = 1 },
                 },
             }) catch unreachable;
             // spawn_rules.append(.{
@@ -689,18 +691,18 @@ const ScreenBattle = struct {
         const my: usize = @intFromFloat(msp.y / cell_size);
 
         if (rl.isMouseButtonPressed(rl.MouseButton.left)) {
-            if (self.wave.get(mx, my) == .lane and debug) {
+            if (self.wave.get(mx, my) == .lane and edit) {
                 self.wave.set(mx, my, .socket);
-            } else if (self.wave.get(mx, my) == .socket and debug) {
+            } else if (self.wave.get(mx, my) == .socket and edit) {
                 self.wave.set(mx, my, .lane);
-            } else if (self.wave.get(mx, my) == .none and debug) {
+            } else if (self.wave.get(mx, my) == .none and edit) {
                 self.wave.set(mx, my, .socket);
             }
 
             if (self.wave.get(mx, my) == .socket and self.transistors >= cpu_transistor_cost) {
                 self.wave.set(mx, my, .{ .cpu = .{} });
             }
-        } else if (rl.isMouseButtonPressed(rl.MouseButton.right) and debug) {
+        } else if (rl.isMouseButtonPressed(rl.MouseButton.right) and edit) {
             self.wave.set(mx, my, .none);
         }
 
@@ -739,6 +741,7 @@ const ScreenBattle = struct {
     fn render(self: *ScreenBattle, game: *Game) void {
         const a = game.frame_arena.allocator();
         const map = self.wave.map;
+        const half_cell = cell_size / 2;
 
         {
             rl.beginMode2D(self.camera);
@@ -751,7 +754,30 @@ const ScreenBattle = struct {
                 }
             }
 
-            const half_cell = cell_size / 2;
+            for (0..map.len) |y| {
+                for (0..map[0].len) |x| {
+                    const cell = self.wave.get(x, y);
+                    switch (cell) {
+                        .cpu => |cpu| {
+                            if (debug) {
+                                const cpu_center = rl.Vector2.init(
+                                    @as(f32, @floatFromInt(x)) * cell_size + cell_size / 2,
+                                    @as(f32, @floatFromInt(y)) * cell_size + cell_size / 2,
+                                );
+                                rl.drawCircleLinesV(cpu_center, cpu.cache_size * cell_size, rl.Color.green);
+                            }
+
+                            for (self.wave.bugs.items) |bug| {
+                                if (bug.dead) {
+                                    continue;
+                                }
+                                self.drawLazer(@floatFromInt(x), @floatFromInt(y), cpu, bug);
+                            }
+                        },
+                        else => continue,
+                    }
+                }
+            }
 
             for (self.wave.bugs.items) |bug| {
                 if (bug.dead) {
@@ -848,6 +874,20 @@ const ScreenBattle = struct {
 
             rl.drawText(debug_info, 20, 20, debug_font_size, .black);
         }
+    }
+
+    fn drawLazer(self: *ScreenBattle, x: f32, y: f32, cpu: Cpu, bug: Bug) void {
+        const cpu_center = rl.Vector2.init(x * cell_size + cell_size / 2, y * cell_size + cell_size / 2);
+        const vector = cpu_center.subtract(bug.position);
+        const distance = vector.length();
+        _ = self;
+
+        const radius = cpu.cache_size * cell_size;
+        if (distance > radius) {
+            return;
+        }
+
+        rl.drawLineEx(cpu_center, bug.position, cpu.bus_width, rl.Color.red);
     }
 
     fn drawCell(self: *ScreenBattle, game: *Game, x: usize, y: usize) void {
