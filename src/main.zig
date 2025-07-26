@@ -481,11 +481,22 @@ const Game = struct {
 };
 
 const ScreenMainMenu = struct {
+    camera: rl.Camera2D,
     pressed_start: bool = false,
     pressed_options: bool = false,
 
     fn init() ScreenMainMenu {
-        return .{};
+        return .{
+            .camera = .{
+                .target = .{ .x = 128, .y = 128 },
+                .offset = .{
+                    .x = 0,
+                    .y = 0,
+                },
+                .rotation = 0,
+                .zoom = @as(f32, @floatFromInt(screenHeight)) / world_height,
+            },
+        };
     }
 
     fn update(self: *ScreenMainMenu, game: *Game, dt: f32) void {
@@ -495,17 +506,38 @@ const ScreenMainMenu = struct {
             const battle = ScreenBattle.init();
             game.screen_state = .{ .battle = battle };
         }
+
+        self.updateCamera();
     }
 
     fn render(self: *ScreenMainMenu, game: *Game) void {
+        rl.beginMode2D(self.camera);
+        defer rl.endMode2D();
+
         // what are we actually calling this game?
-        rl.drawTextEx(game.font_title, "Bug Defenders", rl.Vector2.init(480, 30), 40, 4, rl.Color.white);
+        rl.drawTextEx(game.font_title, "Bug Defenders", rl.Vector2.init(495, 160), 40, 4, rl.Color.white);
 
-        // TODO: the play button and the title text don't scale with window resizing
-        // textures do, though, weirdly?
-        self.pressed_start = rlg.button(.{ .x = 285, .y = 280, .width = 300, .height = 100 }, "Play");
+        self.pressed_start = rlg.button(.{ .x = 540, .y = 410, .width = 200, .height = 75 }, "Play");
 
+        // TODO: after the hackathon, add an options menu
         //self.pressed_options = rlg.button(.{ .x = 285, .y = 280, .width = 300, .height = 100 }, "Options");
+    }
+
+    fn updateCamera(self: *ScreenMainMenu) void {
+        screenWidth = rl.getScreenWidth();
+        screenHeight = rl.getScreenHeight();
+
+        self.camera.target = .{
+            .x = world_width / 2.0,
+            .y = world_height / 2.0,
+        };
+
+        // Take the average between the ratios
+        // This avoids "cheating" by changing the ratio to an extreme value
+        // in order to see more terrain in a certain axis
+        const width_ratio = @as(f32, @floatFromInt(screenWidth)) / world_width;
+        const height_ratio = @as(f32, @floatFromInt(screenHeight)) / world_height;
+        self.camera.zoom = (width_ratio + height_ratio) / 3;
     }
 };
 
@@ -525,7 +557,7 @@ const ScreenBattle = struct {
                     .y = @as(f32, @floatFromInt(screenHeight)) / 2,
                 },
                 .rotation = 0,
-                .zoom = @as(f32, @floatFromInt(screenHeight)) / world_height,
+                .zoom = 0,
             },
             .ram = max_ram,
         };
@@ -558,16 +590,15 @@ const ScreenBattle = struct {
         // in order to see more terrain in a certain axis
         const width_ratio = @as(f32, @floatFromInt(screenWidth)) / world_width;
         const height_ratio = @as(f32, @floatFromInt(screenHeight)) / world_height;
-        self.camera.zoom = (width_ratio + height_ratio) / 2;
+        self.camera.zoom = -(width_ratio + height_ratio);
     }
 
     fn render(self: *ScreenBattle, game: *Game) void {
         const a = game.frame_arena.allocator();
         const map = self.wave.map;
-        const camera = self.camera;
 
         {
-            rl.beginMode2D(camera);
+            rl.beginMode2D(self.camera);
             defer rl.endMode2D();
 
             // TODO: make bugs render between (on top of) lanes and (under) AI
