@@ -411,6 +411,8 @@ const Wave = struct {
 };
 
 const TextureKind = enum {
+    cpus_vs_bugs,
+    power_button,
     socket,
     lane,
     ai,
@@ -442,6 +444,8 @@ const Game = struct {
         var texture_map = std.AutoHashMap(TextureKind, rl.Texture2D).init(ga);
 
         // TODO: make this texture loading more dynamic - DO THIS AFTER JAM
+        const cpus_vs_bugs = rl.loadTexture("assets/img/cpus-vs-bugs.png") catch unreachable;
+        const power_button = rl.loadTexture("assets/img/power-button.png") catch unreachable;
         const lane = rl.loadTexture("assets/img/lane.png") catch unreachable;
         const socket = rl.loadTexture("assets/img/socket.png") catch unreachable;
         const ai = rl.loadTexture("assets/img/ai.png") catch unreachable;
@@ -451,6 +455,9 @@ const Game = struct {
         const ram = rl.loadTexture("assets/img/ram.png") catch unreachable;
         const transistor = rl.loadTexture("assets/img/transistor.png") catch unreachable;
         const cpu_pins = rl.loadTexture("assets/img/cpu_pins.png") catch unreachable;
+
+        texture_map.put(.cpus_vs_bugs, cpus_vs_bugs) catch unreachable;
+        texture_map.put(.power_button, power_button) catch unreachable;
         texture_map.put(.socket, socket) catch unreachable;
         texture_map.put(.lane, lane) catch unreachable;
         texture_map.put(.ai, ai) catch unreachable;
@@ -526,7 +533,9 @@ const Game = struct {
 const ScreenMainMenu = struct {
     camera: rl.Camera2D,
     pressed_start: bool = false,
-    pressed_options: bool = false,
+
+    const start_button_size: f32 = @floatFromInt(cell_size);
+    const title_size: f32 = @floatFromInt(cell_size * 5);
 
     fn init() ScreenMainMenu {
         return .{
@@ -557,17 +566,56 @@ const ScreenMainMenu = struct {
         rl.beginMode2D(self.camera);
         defer rl.endMode2D();
 
+        const title_pos: rl.Vector2 = .{
+            .x = (world_width - ScreenMainMenu.title_size) / 2,
+            .y = (world_height - ScreenMainMenu.title_size) / 2 - 50,
+        };
+
+        rl.drawTextureRec(
+            game.texture_map.get(.cpus_vs_bugs).?,
+            .{
+                .x = 0,
+                .y = 0,
+                .width = ScreenMainMenu.title_size,
+                .height = cell_size,
+            },
+            title_pos,
+            rl.Color.white,
+        );
+
+        rl.drawTextEx(game.font_title, "CPU", title_pos.add(.{ .x = 33, .y = 5 }), 22, 3, rl.Color.white);
+
+        rl.drawTextEx(game.font_title, "AI", title_pos.add(.{ .x = 100, .y = 5 }), 22, 3, rl.Color.white);
+
+        const button_pos: rl.Vector2 = .{
+            .x = (world_width - ScreenMainMenu.start_button_size) / 2,
+            .y = (world_height - ScreenMainMenu.start_button_size) / 2 + 40,
+        };
+
+        const rect = rl.Rectangle.init(
+            button_pos.x,
+            button_pos.y,
+            ScreenMainMenu.start_button_size,
+            ScreenMainMenu.start_button_size,
+        );
+
         const msp = rl.getMousePosition().scale(1 / self.camera.zoom);
 
-        rl.drawRectangleRec(rl.Rectangle.init(msp.x, msp.y, 100, 100), rl.Color.white);
+        const ms_rect = rl.Rectangle.init(msp.x, msp.y, 1, 1);
 
-        // what are we actually calling this game?
-        rl.drawTextEx(game.font_title, "Bug Defenders", rl.Vector2.init(495, 160), 40, 4, rl.Color.white);
+        self.pressed_start = rect.checkCollision(ms_rect) and rl.isMouseButtonPressed(.left);
 
-        self.pressed_start = rlg.button(.{ .x = 540, .y = 410, .width = 200, .height = 75 }, "Play");
-
-        // TODO: after the hackathon, add an options menu
-        //self.pressed_options = rlg.button(.{ .x = 285, .y = 280, .width = 300, .height = 100 }, "Options");
+        rl.drawTextureRec(
+            game.texture_map.get(.power_button).?,
+            .{
+                .x = 0,
+                .y = 0,
+                .width = ScreenMainMenu.start_button_size,
+                .height = ScreenMainMenu.start_button_size,
+            },
+            button_pos,
+            rl.Color.white,
+        );
     }
 
     fn updateCamera(self: *ScreenMainMenu) void {
