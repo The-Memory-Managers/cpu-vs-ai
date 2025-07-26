@@ -13,6 +13,10 @@ const bg_color = rl.Color.init(0x20, 0x2e, 0x37, 0xFF);
 var screenWidth: i32 = 1280;
 var screenHeight: i32 = 720;
 
+const image_assets = [_][]const u8{
+    "",
+};
+
 pub fn main() anyerror!void {
     // Initialization
     //--------------------------------------------------------------------------------------
@@ -231,12 +235,16 @@ const Wave = struct {
         // TODO: quite a bit of logic here
         self.time_since_start += delta_time;
 
+        const half_cell = cell_size / 2;
+        const ai_position = rl.Vector2.init(half_cell, 4 * cell_size + half_cell);
+
         // TODO: post hackathon, optimize this
         for (self.spawn_rules) |*rules| {
-            for (rules.bugs) |bug| {
+            for (0.., rules.bugs) |i, bug| {
                 bug.last_spawn += delta_time;
                 if (bug.last_spawn >= bug.spawn_interval) {
                     bug.last_spawn -= bug.spawn_interval;
+                    self.bugs.append(Bug.init(i, ai_position)) catch unreachable;
                     // TODO: spawn bug
                     // Should initialize it at the center of AI
                     //
@@ -261,6 +269,9 @@ const TextureKind = enum {
     socket,
     lane,
     ai,
+    bug_null,
+    bug_while,
+    bug_stackoverflow,
 };
 
 const Game = struct {
@@ -272,9 +283,6 @@ const Game = struct {
     font_title: rl.Font,
     font_normal: rl.Font,
 
-    camera: rl.Camera2D,
-    wave: Wave,
-
     screen_state: union(enum) {
         main: ScreenMainMenu,
         battle: ScreenBattle,
@@ -285,35 +293,31 @@ const Game = struct {
         const ga = global_arena.allocator();
         var texture_map = std.AutoHashMap(TextureKind, rl.Texture2D).init(ga);
 
+        // TODO: make this texture loading more dynamic - DO THIS AFTER JAM
         const lane = rl.loadTexture("assets/img/lane.png") catch unreachable;
         const socket = rl.loadTexture("assets/img/socket.png") catch unreachable;
         const ai = rl.loadTexture("assets/img/ai.png") catch unreachable;
+        const bug_so = rl.loadTexture("assets/img/stackoverflow.png") catch unreachable;
+        const bug_null = rl.loadTexture("assets/img/nullptr-deref.png") catch unreachable;
+        const bug_while = rl.loadTexture("assets/img/while1.png") catch unreachable;
         texture_map.put(.socket, socket) catch unreachable;
         texture_map.put(.lane, lane) catch unreachable;
         texture_map.put(.ai, ai) catch unreachable;
+        texture_map.put(.bug_null, bug_null) catch unreachable;
+        texture_map.put(.bug_stackoverflow, bug_so) catch unreachable;
+        texture_map.put(.bug_while, bug_while) catch unreachable;
 
         const font_title = rl.loadFontEx("assets/font/DepartureMonoNerdFontMono-Regular.otf", 80, null) catch unreachable;
         const font_normal = rl.loadFontEx("assets/font/GohuFont14NerdFontMono-Regular.ttf", 80, null) catch unreachable;
 
         return .{
-            .camera = .{
-                .target = .{ .x = 128, .y = 128 },
-                .offset = .{
-                    .x = @as(f32, @floatFromInt(screenWidth)) / 2,
-                    .y = @as(f32, @floatFromInt(screenHeight)) / 2,
-                },
-                .rotation = 0,
-                .zoom = @as(f32, @floatFromInt(screenHeight)) / world_height,
-            },
             .global_arena = global_arena,
             .frame_arena = std.heap.ArenaAllocator.init(std.heap.page_allocator),
-            .wave = .init(1), // TODO: change this and move this to ScreenBattle state
             .texture_map = texture_map,
             .font_title = font_title,
             .font_normal = font_normal,
             .screen_state = .{
-                //.battle = .{},
-                .main = .{},
+                .main = .init(),
             },
         };
     }
@@ -329,22 +333,29 @@ const Game = struct {
     }
 
     fn process(self: *Game) void {
-        std.debug.print("Delta time: {d}\n", .{rl.getFrameTime()});
+        const dt = rl.getFrameTime();
+
+        std.debug.print("Delta time: {d}\n", .{dt});
 
         // TODO: find a better method of mutating the original
         switch (self.screen_state) {
             .main => |_| {
-                self.screen_state.main.update(self);
+                self.screen_state.main.update(self, dt);
             },
             .battle => |_| {
-                self.screen_state.battle.update(self);
+                self.screen_state.battle.update(self, dt);
             },
         }
-
-        self.updateCamera();
     }
 
     fn render(self: *Game) void {
+        rl.beginDrawing();
+        defer rl.endDrawing();
+
+        // TODO: maybe add a system for each screen to be able to give a color to set the background?
+        // just so the render method of the screens doesn't have to directly call rl.clearBackground
+        rl.clearBackground(bg_color);
+
         // TODO: find a better method of mutating the original
         switch (self.screen_state) {
             .main => |_| {
@@ -355,8 +366,63 @@ const Game = struct {
             },
         }
     }
+};
 
-    fn updateCamera(self: *Game) void {
+const ScreenMainMenu = struct {
+    pressed_start: bool = false,
+    pressed_options: bool = false,
+
+    fn init() ScreenMainMenu {
+        return .{};
+    }
+
+    fn update(self: *ScreenMainMenu, game: *Game, dt: f32) void {
+        _ = dt;
+
+        if (self.pressed_start) {
+            const battle = ScreenBattle.init();
+            game.screen_state = .{ .battle = battle };
+        }
+    }
+
+    fn render(self: *ScreenMainMenu, game: *Game) void {
+        // what are we actually calling this game?
+        rl.drawTextEx(game.font_title, "Bug Defenders", rl.Vector2.init(480, 30), 40, 4, rl.Color.white);
+
+        // TODO: the play button and the title text don't scale with window resizing
+        // textures do, though, weirdly?
+        self.pressed_start = rlg.button(.{ .x = 285, .y = 280, .width = 300, .height = 100 }, "Play");
+
+        //self.pressed_options = rlg.button(.{ .x = 285, .y = 280, .width = 300, .height = 100 }, "Options");
+    }
+};
+
+const ScreenBattle = struct {
+    camera: rl.Camera2D,
+    wave: Wave,
+
+    fn init() ScreenBattle {
+        return .{
+            .wave = .init(1), // TODO: change this and move this to ScreenBattle state
+            .camera = .{
+                .target = .{ .x = 128, .y = 128 },
+                .offset = .{
+                    .x = @as(f32, @floatFromInt(screenWidth)) / 2,
+                    .y = @as(f32, @floatFromInt(screenHeight)) / 2,
+                },
+                .rotation = 0,
+                .zoom = @as(f32, @floatFromInt(screenHeight)) / world_height,
+            },
+        };
+    }
+
+    fn update(self: *ScreenBattle, game: *Game, dt: f32) void {
+        _ = game;
+        _ = dt;
+        self.updateCamera();
+    }
+
+    fn updateCamera(self: *ScreenBattle) void {
         screenWidth = rl.getScreenWidth();
         screenHeight = rl.getScreenHeight();
 
@@ -377,48 +443,11 @@ const Game = struct {
         const height_ratio = @as(f32, @floatFromInt(screenHeight)) / world_height;
         self.camera.zoom = (width_ratio + height_ratio) / 2;
     }
-};
-
-const ScreenMainMenu = struct {
-    fn update(self: *ScreenMainMenu, game: *Game) void {
-        _ = self;
-        _ = game;
-    }
-
-    fn render(self: *ScreenMainMenu, game: *Game) void {
-        _ = self;
-
-        rl.beginDrawing();
-        defer rl.endDrawing();
-
-        rl.clearBackground(bg_color);
-
-        // what are we actually calling this game?
-        rl.drawTextEx(game.font_title, "Bug Defenders", rl.Vector2.init(480, 30), 40, 4, rl.Color.white);
-
-        // TODO: the play button and the title text don't scale with window resizes
-        // weirdly, textures do, though?
-        if (rlg.button(.{ .x = 485, .y = 480, .width = 300, .height = 150 }, "Play")) {
-            game.screen_state = .{ .battle = .{} };
-        }
-    }
-};
-
-const ScreenBattle = struct {
-    fn update(self: *ScreenBattle, game: *Game) void {
-        _ = self;
-        _ = game;
-    }
 
     fn render(self: *ScreenBattle, game: *Game) void {
         const a = game.frame_arena.allocator();
-        const map = game.wave.map;
-        const camera = game.camera;
-
-        rl.beginDrawing();
-        defer rl.endDrawing();
-
-        rl.clearBackground(bg_color);
+        const map = self.wave.map;
+        const camera = self.camera;
 
         {
             rl.beginMode2D(camera);
@@ -429,6 +458,15 @@ const ScreenBattle = struct {
                 for (0..map[0].len) |x| {
                     self.drawCell(game, x, y);
                 }
+            }
+
+            for (self.wave.bugs.items) |bug| {
+                const texture = switch (bug.kind) {
+                    .nullptr_deref => game.texture_map.get(.bug_null).?,
+                    .stack_overflow => game.texture_map.get(.bug_stackoverflow).?,
+                    .infinite_loop => game.texture_map.get(.bug_while).?,
+                };
+                rl.drawTexture(texture, @intCast(bug.position.x), @intCast(bug.position.y), rl.Color.white);
             }
         }
 
@@ -462,9 +500,7 @@ const ScreenBattle = struct {
     }
 
     fn drawCell(self: *ScreenBattle, game: *Game, x: usize, y: usize) void {
-        _ = self;
-
-        switch (game.wave.map[y][x]) {
+        switch (self.wave.map[y][x]) {
             .none => return,
             .socket => {
                 const texture = game.texture_map.get(.socket).?;
@@ -473,10 +509,10 @@ const ScreenBattle = struct {
             .lane => {
                 const texture = game.texture_map.get(.lane).?;
 
-                const lane_left = game.wave.get(x - 1, y).isLaneConnected();
-                const lane_right = game.wave.get(x + 1, y).isLaneConnected();
-                const lane_top = game.wave.get(x, y - 1).isLaneConnected();
-                const lane_bottom = game.wave.get(x, y + 1).isLaneConnected();
+                const lane_left = self.wave.get(x - 1, y).isLaneConnected();
+                const lane_right = self.wave.get(x + 1, y).isLaneConnected();
+                const lane_top = self.wave.get(x, y - 1).isLaneConnected();
+                const lane_bottom = self.wave.get(x, y + 1).isLaneConnected();
 
                 var offset: f32 = undefined;
                 // Choose the correct sprite
