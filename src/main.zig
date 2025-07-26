@@ -16,9 +16,9 @@ const edit = debug and false;
 var screen_width: i32 = 1280;
 var screen_height: i32 = 720;
 
-const image_assets = [_][]const u8{
-    "",
-};
+// TODO: ideas for the future (after hackathon)
+// "Heat system" (shooting lazers increases heat, heat decreases over time, if heat is too high, CPU throttles)
+// "Cooling system" some way to have CPUs that are more resistant to heat
 
 pub fn main() anyerror!void {
     // Initialization
@@ -207,13 +207,14 @@ const Instruction = struct {
     const Opcode = union(enum) {
         noop, // does nothing
         sleep: f32, // Slows enemies (multiplier of enemy speed, 0.5-0.9 randomized)
-        prefetch: f32, // Deals more damage (multiplier of cache size, 1.5-2 randomized)
-        overclock: f32, // Faster firerate (multiplier of clock speed, 1.1-1.5 randomized)
+        prefetch: f32, // Larger radius (multiplier of cache size, 1.5-2 randomized)
+        overclock: f32, // Deals more damage (multiplier of bus width, 1.5-2 randomized)
+        // // overclock: f32, // Faster firerate (multiplier of clock speed, 1.1-1.5 randomized)
     };
 };
 
 const Cpu = struct {
-    clock_speed: f32 = 1, // Fire rate, every how many seconds to fire
+    // clock_speed: f32 = 1, // Fire rate, every how many seconds to fire
     bus_width: f32 = 1, // Bus width, damage dealt
     cache_size: f32 = 1.5, // Cache size, range (distance for attack)
     debugs: u32 = 0, // How many bugs were killed
