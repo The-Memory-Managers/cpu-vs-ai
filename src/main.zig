@@ -160,9 +160,12 @@ const Bug = struct {
 
     fn damage(self: Bug) f32 {
         return switch (self.kind) {
-            .nullptr_deref => return 1,
-            .stack_overflow => return 2,
-            .infinite_loop => return 0.5,
+            .nullptr_deref => return 10,
+            .stack_overflow => return 20,
+            .infinite_loop => return 33,
+            // .nullptr_deref => return 1,
+            // .stack_overflow => return 2,
+            // .infinite_loop => return 0.5,
         } * self.health;
     }
 
