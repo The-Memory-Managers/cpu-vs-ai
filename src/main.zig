@@ -313,8 +313,8 @@ const Wave = struct {
 
         for (1..cells_height - 1) |y| {
             for (1..cells_width - 1) |x| {
-                const isEven = (y + x) % 2 == 0;
-                if (isEven) {
+                // const is_even = (y + x) % 2 == 0;
+                if (true) {
                     wave.map[y][x] = .socket;
                 }
             }
@@ -367,14 +367,14 @@ const Wave = struct {
     }
 
     fn get(self: *Wave, x: usize, y: usize) Cell {
-        if (x >= cells_width or y >= cells_height) {
+        if (x >= cells_width or y >= cells_height or x < 0 or y < 0) {
             return .none;
         }
         return self.map[y][x];
     }
 
     fn set(self: *Wave, x: usize, y: usize, cell: Cell) void {
-        if (x < cells_width and y < cells_height) {
+        if (x < cells_width and y < cells_height and x >= 0 and y >= 0) {
             self.map[y][x] = cell;
         }
     }
@@ -579,9 +579,28 @@ const ScreenBattle = struct {
     fn update(self: *ScreenBattle, game: *Game, dt: f32) void {
         _ = game;
 
+        self.handlePlayerInput(dt);
+
         self.wave.update(dt, &self.ram);
 
         self.updateCamera();
+    }
+
+    fn handlePlayerInput(self: *ScreenBattle, dt: f32) void {
+        _ = dt;
+
+        if (rl.isMouseButtonPressed(rl.MouseButton.left)) {
+            const msp = rl.getMousePosition().scale(1 / self.camera.zoom);
+
+            const x: usize = @intFromFloat(msp.x / cell_size);
+            const y: usize = @intFromFloat(msp.y / cell_size);
+
+            if (self.wave.get(x, y) == .lane) {
+                self.wave.set(x, y, .socket);
+            } else if (self.wave.get(x, y) == .socket) {
+                self.wave.set(x, y, .lane);
+            }
+        }
     }
 
     fn updateCamera(self: *ScreenBattle) void {
