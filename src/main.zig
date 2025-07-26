@@ -496,8 +496,8 @@ const ScreenMainMenu = struct {
             .camera = .{
                 .target = .{ .x = 128, .y = 128 },
                 .offset = .{
-                    .x = 0,
-                    .y = 0,
+                    .x = @as(f32, @floatFromInt(screenWidth)) / 2,
+                    .y = @as(f32, @floatFromInt(screenHeight)) / 2,
                 },
                 .rotation = 0,
                 .zoom = @as(f32, @floatFromInt(screenHeight)) / world_height,
@@ -508,12 +508,12 @@ const ScreenMainMenu = struct {
     fn update(self: *ScreenMainMenu, game: *Game, dt: f32) void {
         _ = dt;
 
+        self.updateCamera();
+
         if (self.pressed_start) {
             const battle = ScreenBattle.init();
             game.screen_state = .{ .battle = battle };
         }
-
-        self.updateCamera();
     }
 
     fn render(self: *ScreenMainMenu, game: *Game) void {
@@ -522,10 +522,7 @@ const ScreenMainMenu = struct {
 
         const msp = rl.getMousePosition().scale(1 / self.camera.zoom);
 
-        const x = msp.x / cell_size;
-        const y = msp.y / cell_size;
-
-        rl.drawRectangleRec(rl.Rectangle.init(x, y, 100, 100), rl.Color.white);
+        rl.drawRectangleRec(rl.Rectangle.init(msp.x, msp.y, 100, 100), rl.Color.white);
 
         // what are we actually calling this game?
         rl.drawTextEx(game.font_title, "Bug Defenders", rl.Vector2.init(495, 160), 40, 4, rl.Color.white);
@@ -540,6 +537,11 @@ const ScreenMainMenu = struct {
         screenWidth = rl.getScreenWidth();
         screenHeight = rl.getScreenHeight();
 
+        self.camera.offset = .{
+            .x = @as(f32, @floatFromInt(screenWidth)) / 2,
+            .y = @as(f32, @floatFromInt(screenHeight)) / 2,
+        };
+
         self.camera.target = .{
             .x = world_width / 2.0,
             .y = world_height / 2.0,
@@ -550,7 +552,7 @@ const ScreenMainMenu = struct {
         // in order to see more terrain in a certain axis
         const width_ratio = @as(f32, @floatFromInt(screenWidth)) / world_width;
         const height_ratio = @as(f32, @floatFromInt(screenHeight)) / world_height;
-        self.camera.zoom = (width_ratio + height_ratio) / 3;
+        self.camera.zoom = (width_ratio + height_ratio) / 2;
     }
 };
 
