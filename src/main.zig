@@ -62,7 +62,6 @@ const Bug = struct {
     target: rl.Vector2, // Center of next cell
     animation_time: f32 = 0,
     animation_state: f32 = 0,
-    const animation_switch_threshold = 0.3; // seconds
 
     pub fn init(kind: BugKind, position: rl.Vector2) Bug {
         return Bug{
@@ -76,7 +75,7 @@ const Bug = struct {
 
     pub fn update(self: *Bug, delta_time: f32, wave: *Wave) void {
         self.animation_time += delta_time;
-        if (self.animation_time > animation_switch_threshold) {
+        if (self.animation_time > animationSwitchThreshold(self.kind)) {
             self.animation_time = 0;
             self.animation_state = @mod((self.animation_state + 1), animationCount(self.kind));
         }
@@ -168,6 +167,14 @@ const Bug = struct {
             .infinite_loop => return 6,
         };
     }
+
+    fn animationSwitchThreshold(kind: BugKind) f32 {
+        return switch (kind) {
+            .nullptr_deref => return 0.3,
+            .stack_overflow => return 0.3,
+            .infinite_loop => return 0.05,
+        };
+    }
 };
 
 const Condition = union(enum) {
@@ -252,9 +259,9 @@ const Wave = struct {
                 .from_time_s = 0,
                 .to_time_s = 10,
                 .bugs = .{
+                    .{ .spawn_interval = 0 },
+                    .{ .spawn_interval = 0 },
                     .{ .spawn_interval = 3 },
-                    .{ .spawn_interval = 0 },
-                    .{ .spawn_interval = 0 },
                 },
             }) catch unreachable;
             // spawn_rules.append(.{
