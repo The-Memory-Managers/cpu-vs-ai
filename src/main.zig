@@ -130,7 +130,7 @@ const Bug = struct {
             }
             if (target.x == 0 and target.y == 0) {
                 if (wave.get(target_grid_x, target_grid_y) == .ram) {
-                    ram.* = @max(ram.* - self.damage(), 0);
+                    ram.* = @max(ram.* - self.memory(), 0);
                     self.dead = true;
                 } else {
                     unreachable;
@@ -144,9 +144,9 @@ const Bug = struct {
 
     pub fn maxHealth(kind: BugKind) f32 {
         return switch (kind) {
-            .nullptr_deref => return 30,
-            .stack_overflow => return 100,
-            .infinite_loop => return 10,
+            .nullptr_deref => return 3,
+            .stack_overflow => return 10,
+            .infinite_loop => return 1,
         };
     }
 
@@ -158,7 +158,14 @@ const Bug = struct {
         };
     }
 
-    fn damage(self: Bug) f32 {
+    fn damage(self: *Bug, dmg: f32) void {
+        self.health -= dmg;
+        if (self.health <= 0) {
+            self.dead = true;
+        }
+    }
+
+    fn memory(self: Bug) f32 {
         return switch (self.kind) {
             .nullptr_deref => return 10,
             .stack_overflow => return 20,
@@ -212,6 +219,11 @@ const Cpu = struct {
     debugs: u32 = 0, // How many bugs were killed
     instructions: [max_instructions]Instruction = [_]Instruction{.{}} ** max_instructions, // modifiers
     const max_instructions = 5;
+
+    fn damage(self: Cpu) f32 {
+        // TODO: take instructions into account
+        return self.bus_width;
+    }
 
     fn cores(self: Cpu) u32 {
         return switch (self.debugs) {
@@ -676,6 +688,7 @@ const ScreenBattle = struct {
         self.handlePlayerInput(dt);
 
         self.wave.update(dt, &self.ram);
+        self.updateCpuAndBugs(dt);
 
         self.updateCamera();
     }
@@ -710,6 +723,44 @@ const ScreenBattle = struct {
             }, f) catch unreachable;
             f.writeByte('\n') catch unreachable;
             unreachable;
+        }
+    }
+
+    fn updateCpuAndBugs(self: *ScreenBattle, dt: f32) void {
+        const map = self.wave.map;
+
+        for (0..map.len) |y| {
+            for (0..map[0].len) |x| {
+                const cell = self.wave.get(x, y);
+                switch (cell) {
+                    .cpu => |cpu| {
+                        const cpu_center = rl.Vector2.init(
+                            @as(f32, @floatFromInt(x)) * cell_size + cell_size / 2,
+                            @as(f32, @floatFromInt(y)) * cell_size + cell_size / 2,
+                        );
+
+                        var count: u32 = 0;
+                        const radius = cpu.cache_size * cell_size;
+                        for (self.wave.bugs.items) |*bug| {
+                            if (bug.dead) {
+                                continue;
+                            }
+                            if (count >= cpu.cores()) {
+                                break;
+                            }
+
+                            const distance = cpu_center.subtract(bug.position).length();
+                            if (distance > radius) {
+                                continue;
+                            }
+
+                            bug.damage(cpu.damage() * dt);
+                            count += 1;
+                        }
+                    },
+                    else => continue,
+                }
+            }
         }
     }
 
