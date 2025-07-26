@@ -218,7 +218,6 @@ const Cell = union(enum) {
     cpu: Cpu,
     ai,
     lane,
-    color: rl.Color,
 
     fn isLaneConnected(self: Cell) bool {
         return switch (self) {
@@ -305,8 +304,6 @@ const Wave = struct {
             for (1..cells_width - 1) |x| {
                 const isEven = (y + x) % 2 == 0;
                 if (isEven) {
-                    wave.map[y][x] = .{ .color = rl.Color.blue };
-                } else {
                     wave.map[y][x] = .socket;
                 }
             }
@@ -649,15 +646,6 @@ const ScreenBattle = struct {
             .ai => {
                 const texture = game.texture_map.get(.ai).?;
                 rl.drawTexture(texture, @intCast(x * cell_size), @intCast(y * cell_size), rl.Color.white);
-            },
-            .color => |color| {
-                rl.drawRectangle(
-                    @intCast(x * cell_size),
-                    @intCast(y * cell_size),
-                    cell_size,
-                    cell_size,
-                    color,
-                );
             },
         }
     }
