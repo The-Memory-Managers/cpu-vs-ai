@@ -228,13 +228,23 @@ const Cpu = struct {
     }
 
     fn cores(self: Cpu) u32 {
+        return switch (self.level()) {
+            1 => 1,
+            2 => 2,
+            3 => 4,
+            4 => 8,
+            else => 16,
+        };
+    }
+
+    fn level(self: Cpu) u32 {
         return switch (self.debugs) {
             // TODO: only for debug (change this once ready for play testing)
             0...2 => 1,
             3...4 => 2,
-            5...6 => 4,
-            7...8 => 8,
-            else => 16,
+            5...6 => 3,
+            7...8 => 4,
+            else => 5,
             // 0...9 => 1,
             // 10...24 => 2,
             // 25...49 => 3,
@@ -303,10 +313,10 @@ const Wave = struct {
 
             spawn_rules.append(.{
                 .from_time_s = 0,
-                .to_time_s = 10,
+                .to_time_s = 30,
                 .bugs = .{
-                    .{ .spawn_interval = 0 },
-                    .{ .spawn_interval = 0 },
+                    .{ .spawn_interval = 0.5 },
+                    .{ .spawn_interval = 0.5 },
                     .{ .spawn_interval = 0.5 },
                 },
             }) catch unreachable;
@@ -998,7 +1008,7 @@ const ScreenBattle = struct {
             .cpu => |cpu| {
                 const texture = game.texture_map.get(.cpu).?;
 
-                const offset: f32 = @floatFromInt(cpu.cores() - 1);
+                const offset: f32 = @floatFromInt(cpu.level() - 1);
                 rl.drawTextureRec(
                     texture,
                     .{ .x = offset * cell_size, .y = 0, .width = cell_size, .height = cell_size },
