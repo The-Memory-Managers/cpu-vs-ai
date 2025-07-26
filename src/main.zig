@@ -557,7 +557,7 @@ const ScreenBattle = struct {
                     .y = @as(f32, @floatFromInt(screenHeight)) / 2,
                 },
                 .rotation = 0,
-                .zoom = 0,
+                .zoom = @as(f32, @floatFromInt(screenHeight)) / world_height,
             },
             .ram = max_ram,
         };
@@ -590,7 +590,7 @@ const ScreenBattle = struct {
         // in order to see more terrain in a certain axis
         const width_ratio = @as(f32, @floatFromInt(screenWidth)) / world_width;
         const height_ratio = @as(f32, @floatFromInt(screenHeight)) / world_height;
-        self.camera.zoom = -(width_ratio + height_ratio);
+        self.camera.zoom = (width_ratio + height_ratio) / 2;
     }
 
     fn render(self: *ScreenBattle, game: *Game) void {
