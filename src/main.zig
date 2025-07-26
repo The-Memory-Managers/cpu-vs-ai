@@ -520,10 +520,10 @@ const ScreenMainMenu = struct {
         rl.beginMode2D(self.camera);
         defer rl.endMode2D();
 
-        const msp = rl.getMousePosition();
+        const msp = rl.getMousePosition().scale(1 / self.camera.zoom);
 
-        const x = msp.x / (cells_width * cells_height);
-        const y = msp.y / (cells_width * cells_height);
+        const x = msp.x / cell_size;
+        const y = msp.y / cell_size;
 
         rl.drawRectangleRec(rl.Rectangle.init(x, y, 100, 100), rl.Color.white);
 
