@@ -30,6 +30,9 @@ pub fn main() anyerror!void {
     defer rl.closeWindow(); // Close window and OpenGL context
     rl.setWindowState(.{ .window_resizable = false });
 
+    rl.initAudioDevice();
+    defer rl.closeAudioDevice();
+
     rl.setTargetFPS(60); // Set our game to run at 60 frames-per-second
     rl.setExitKey(.caps_lock);
     //--------------------------------------------------------------------------------------
@@ -485,11 +488,20 @@ const TextureKind = enum {
     upgrade_popup,
 };
 
+const SoundKind = enum {
+    bug_death,
+    bug_attack,
+    ram_destroyed,
+    cpu_place,
+    cpu_upgrade,
+};
+
 const Game = struct {
     global_arena: std.heap.ArenaAllocator,
     frame_arena: std.heap.ArenaAllocator,
 
     texture_map: std.AutoHashMap(TextureKind, rl.Texture2D),
+    sound_map: std.AutoHashMap(SoundKind, rl.Sound),
 
     font_title: rl.Font,
     font_normal: rl.Font,
@@ -503,6 +515,7 @@ const Game = struct {
         var global_arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
         const ga = global_arena.allocator();
         var texture_map = std.AutoHashMap(TextureKind, rl.Texture2D).init(ga);
+        var sound_map = std.AutoHashMap(SoundKind, rl.Sound).init(ga);
 
         // TODO: make this texture loading more dynamic - DO THIS AFTER JAM
         const cpus_vs_bugs = rl.loadTexture("assets/img/cpus-vs-bugs.png") catch unreachable;
@@ -532,6 +545,17 @@ const Game = struct {
         texture_map.put(.cpu, cpu) catch unreachable;
         texture_map.put(.upgrade_popup, upgrade_popup) catch unreachable;
 
+        const bug_death = rl.loadSound("assets/sfx/bug-death.wav") catch unreachable;
+        const bug_attack = rl.loadSound("assets/sfx/bug-attack.wav") catch unreachable;
+        const ram_destroyed = rl.loadSound("assets/sfx/ram-destroyed.wav") catch unreachable;
+        const cpu_place = rl.loadSound("assets/sfx/cpu-place.mp3") catch unreachable;
+        const cpu_upgrade = rl.loadSound("assets/sfx/cpu-upgrade.wav") catch unreachable;
+        sound_map.put(.bug_death, bug_death) catch unreachable;
+        sound_map.put(.bug_attack, bug_attack) catch unreachable;
+        sound_map.put(.ram_destroyed, ram_destroyed) catch unreachable;
+        sound_map.put(.cpu_place, cpu_place) catch unreachable;
+        sound_map.put(.cpu_upgrade, cpu_upgrade) catch unreachable;
+
         const font_title = rl.loadFontEx("assets/font/DepartureMonoNerdFontMono-Regular.otf", 80, null) catch unreachable;
         const font_normal = rl.loadFontEx("assets/font/GohuFont14NerdFontMono-Regular.ttf", 80, null) catch unreachable;
 
@@ -539,6 +563,7 @@ const Game = struct {
             .global_arena = global_arena,
             .frame_arena = std.heap.ArenaAllocator.init(std.heap.page_allocator),
             .texture_map = texture_map,
+            .sound_map = sound_map,
             .font_title = font_title,
             .font_normal = font_normal,
             .screen_state = .{
