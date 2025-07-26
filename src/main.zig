@@ -158,11 +158,12 @@ const Bug = struct {
         };
     }
 
-    fn damage(self: *Bug, dmg: f32) void {
+    fn damage(self: *Bug, dmg: f32) bool {
         self.health -= dmg;
         if (self.health <= 0) {
             self.dead = true;
         }
+        return self.dead;
     }
 
     fn memory(self: Bug) f32 {
@@ -228,11 +229,17 @@ const Cpu = struct {
 
     fn cores(self: Cpu) u32 {
         return switch (self.debugs) {
-            0...9 => 1,
-            10...24 => 2,
-            25...49 => 3,
-            50...100 => 4,
+            // TODO: only for debug (change this once ready for play testing)
+            0...2 => 1,
+            3...4 => 2,
+            5...6 => 3,
+            7...8 => 4,
             else => 5,
+            // 0...9 => 1,
+            // 10...24 => 2,
+            // 25...49 => 3,
+            // 50...100 => 4,
+            // else => 5,
         };
     }
 };
@@ -408,6 +415,13 @@ const Wave = struct {
 
     fn deinit(self: *Wave) void {
         self.arena.deinit();
+    }
+
+    fn at(self: *Wave, x: usize, y: usize) ?*Cell {
+        if (x >= cells_width or y >= cells_height or x < 0 or y < 0) {
+            return null;
+        }
+        return &self.map[y][x];
     }
 
     fn get(self: *Wave, x: usize, y: usize) Cell {
@@ -712,6 +726,7 @@ const ScreenBattle = struct {
 
             if (self.wave.get(mx, my) == .socket and self.transistors >= cpu_transistor_cost) {
                 self.wave.set(mx, my, .{ .cpu = .{} });
+                // self.transistors -= cpu_transistor_cost; // TODO: uncomment when playtesting
             }
         } else if (rl.isMouseButtonPressed(rl.MouseButton.right) and edit) {
             self.wave.set(mx, my, .none);
@@ -732,9 +747,11 @@ const ScreenBattle = struct {
 
         for (0..map.len) |y| {
             for (0..map[0].len) |x| {
-                const cell = self.wave.get(x, y);
-                switch (cell) {
-                    .cpu => |cpu| {
+                const cell = self.wave.at(x, y).?;
+                switch (cell.*) {
+                    .cpu => {
+                        var cpu = &cell.cpu;
+
                         const cpu_center = rl.Vector2.init(
                             @as(f32, @floatFromInt(x)) * cell_size + cell_size / 2,
                             @as(f32, @floatFromInt(y)) * cell_size + cell_size / 2,
@@ -755,7 +772,9 @@ const ScreenBattle = struct {
                                 continue;
                             }
 
-                            bug.damage(cpu.damage() * dt);
+                            if (bug.damage(cpu.damage() * dt)) {
+                                cpu.debugs += 1;
+                            }
                             count += 1;
                         }
                     },
