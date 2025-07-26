@@ -808,8 +808,8 @@ const ScreenBattle = struct {
 
         const msp = getMousePos(&self.camera);
 
-        const mx: usize = @intFromFloat(msp.x);
-        const my: usize = @intFromFloat(msp.y);
+        const mx: usize = @intFromFloat(msp.x / cell_size);
+        const my: usize = @intFromFloat(msp.y / cell_size);
 
         if (rl.isMouseButtonPressed(rl.MouseButton.left)) {
             if (self.wave.get(mx, my) == .lane and edit) {
