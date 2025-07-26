@@ -98,7 +98,6 @@ const Bug = struct {
 
             const lane_left = wave.get(target_grid_x - 1, target_grid_y).isLaneConnected();
             const lane_right = wave.get(target_grid_x + 1, target_grid_y).isLaneConnected();
-            // TODO: are these correct or flipped
             const lane_top = wave.get(target_grid_x, target_grid_y - 1).isLaneConnected();
             const lane_bottom = wave.get(target_grid_x, target_grid_y + 1).isLaneConnected();
 
@@ -122,26 +121,24 @@ const Bug = struct {
                 std.debug.print("lane right\n", .{});
             }
             if (lane_top and prev_grid_y != target_grid_y - 1) {
-                // TODO: are these correct or flipped
                 target = self.target.add(rl.Vector2.init(0, -cell_size));
                 std.debug.print("lane top\n", .{});
             }
             if (lane_bottom and prev_grid_y != target_grid_y + 1) {
-                // TODO: are these correct or flipped
                 target = self.target.add(rl.Vector2.init(0, cell_size));
                 std.debug.print("lane bottom\n", .{});
             }
             if (target.x == 0 and target.y == 0) {
-                unreachable;
+                if (wave.get(target_grid_x, target_grid_y) == .ram) {
+                    ram.* = @max(ram.* - self.damage(), 0);
+                    self.dead = true;
+                } else {
+                    unreachable;
+                }
             }
 
             self.previous = self.target;
             self.target = target;
-
-            if (wave.get(target_grid_x + 1, target_grid_y) == .ram) {
-                ram.* = @max(ram.* - self.damage(), 0);
-                self.dead = true;
-            }
         }
     }
 
