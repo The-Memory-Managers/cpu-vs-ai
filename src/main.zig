@@ -188,18 +188,19 @@ const Bug = struct {
     }
 };
 
-const Condition = union(enum) {
-    always,
-    memory_leak: f32, // Health percentage, ram<0.25 or ram<0.5 (randomized)
-    bug: BugKind, // Against this specific enemy type
-    idle: f32, // Idle time in seconds, 1s-2s (randomized)
-};
-
 const Instruction = struct {
-    condition: Condition,
-    opcode: Opcode,
+    condition: Condition = .always,
+    opcode: Opcode = .noop,
+
+    const Condition = union(enum) {
+        always,
+        memory_leak: f32, // Health percentage, ram<0.25 or ram<0.5 (randomized)
+        bug: BugKind, // Against this specific enemy type
+        idle: f32, // Idle time in seconds, 1s-2s (randomized)
+    };
 
     const Opcode = union(enum) {
+        noop, // does nothing
         sleep: f32, // Slows enemies (multiplier of enemy speed, 0.5-0.9 randomized)
         prefetch: f32, // Deals more damage (multiplier of cache size, 1.5-2 randomized)
         overclock: f32, // Faster firerate (multiplier of clock speed, 1.1-1.5 randomized)
@@ -210,7 +211,8 @@ const Cpu = struct {
     clock_speed: f32 = 1, // Fire rate, every how many seconds to fire
     cache_size: f32 = 1, // Cache size, damage dealt
     debugs: u32 = 0, // How many bugs were killed
-    instructions: []Instruction, // modifiers
+    instructions: [max_instructions]Instruction = [_]Instruction{.{}} ** max_instructions, // modifiers
+    const max_instructions = 5;
 
     fn cores(self: Cpu) u32 {
         return switch (self.debugs) {
@@ -416,6 +418,7 @@ const TextureKind = enum {
     socket,
     lane,
     ai,
+    cpu,
     ram,
     bug_null,
     bug_while,
@@ -455,7 +458,7 @@ const Game = struct {
         const ram = rl.loadTexture("assets/img/ram.png") catch unreachable;
         const transistor = rl.loadTexture("assets/img/transistor.png") catch unreachable;
         const cpu_pins = rl.loadTexture("assets/img/cpu_pins.png") catch unreachable;
-
+        const cpu = rl.loadTexture("assets/img/cpu.png") catch unreachable;
         texture_map.put(.cpus_vs_bugs, cpus_vs_bugs) catch unreachable;
         texture_map.put(.power_button, power_button) catch unreachable;
         texture_map.put(.socket, socket) catch unreachable;
@@ -467,6 +470,7 @@ const Game = struct {
         texture_map.put(.ram, ram) catch unreachable;
         texture_map.put(.transistor, transistor) catch unreachable;
         texture_map.put(.cpu_pins, cpu_pins) catch unreachable;
+        texture_map.put(.cpu, cpu) catch unreachable;
 
         const font_title = rl.loadFontEx("assets/font/DepartureMonoNerdFontMono-Regular.otf", 80, null) catch unreachable;
         const font_normal = rl.loadFontEx("assets/font/GohuFont14NerdFontMono-Regular.ttf", 80, null) catch unreachable;
@@ -648,6 +652,7 @@ const ScreenBattle = struct {
     transistors: f32 = 0,
 
     const max_ram = 100;
+    const cpu_transistor_cost = 100;
 
     fn init() ScreenBattle {
         return .{
@@ -692,10 +697,9 @@ const ScreenBattle = struct {
                 self.wave.set(mx, my, .socket);
             }
 
-            // if (self.wave.get(mx, my) == .socket) {
-            //     self.wave.set(mx, my, .cpu);
-            // }
-
+            if (self.wave.get(mx, my) == .socket and self.transistors >= cpu_transistor_cost) {
+                self.wave.set(mx, my, .{ .cpu = .{} });
+            }
         } else if (rl.isMouseButtonPressed(rl.MouseButton.right) and debug) {
             self.wave.set(mx, my, .none);
         }
@@ -793,9 +797,10 @@ const ScreenBattle = struct {
                 rl.Color.white,
             );
 
+            const cpu_cost = std.fmt.allocPrintZ(a, "= {d}", .{cpu_transistor_cost}) catch unreachable;
             rl.drawTextEx(
                 game.font_title,
-                "= 100",
+                cpu_cost,
                 .{ .x = cell_size, .y = offset + (font_size) / 8 },
                 font_size,
                 1,
@@ -883,7 +888,10 @@ const ScreenBattle = struct {
                     rl.Color.white,
                 );
             },
-            .cpu => {},
+            .cpu => {
+                const texture = game.texture_map.get(.cpu).?;
+                rl.drawTexture(texture, @intCast(x * cell_size), @intCast(y * cell_size), rl.Color.white);
+            },
             .ai => {
                 const texture = game.texture_map.get(.ai).?;
                 rl.drawTexture(texture, @intCast(x * cell_size), @intCast(y * cell_size), rl.Color.white);
