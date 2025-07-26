@@ -156,11 +156,6 @@ const Bug = struct {
                     const is_0 = prev_ram_percentage > 0 and ram_percentage <= 0;
                     if (is_75 or is_50 or is_25 or is_0) {
                         rl.playSound(game.sound_map.get(.ram_destroyed).?);
-                        if (is_0) {
-                            // TODO: game over (if we don't want the crash "ending" we can move to a game over screen or something)
-                            std.time.sleep(std.time.ns_per_ms * 500);
-                            unreachable;
-                        }
                     } else {
                         rl.playSound(game.sound_map.get(.bug_attack).?);
                     }
@@ -603,8 +598,8 @@ const Game = struct {
             .font_title = font_title,
             .font_normal = font_normal,
             .screen_state = .{
-                // .main = .init(),
-                .battle = .init(),
+                .main = .init(),
+                // .battle = .init(),
             },
         };
     }
@@ -794,6 +789,10 @@ const ScreenBattle = struct {
         };
     }
 
+    fn deinit(self: *ScreenBattle) void {
+        self.wave.deinit();
+    }
+
     fn update(self: *ScreenBattle, game: *Game, dt: f32) void {
         self.handlePlayerInput(game, dt);
 
@@ -801,6 +800,11 @@ const ScreenBattle = struct {
         self.updateCpuAndBugs(game, dt);
 
         self.updateCamera();
+
+        if (self.ram <= 0) {
+            self.deinit();
+            game.screen_state = .{ .main = .init() };
+        }
     }
 
     fn handlePlayerInput(self: *ScreenBattle, game: *Game, dt: f32) void {
