@@ -92,7 +92,7 @@ const Bug = struct {
         };
     }
 
-    pub fn update(self: *Bug, delta_time: f32, wave: *Wave, ram: *f32) void {
+    pub fn update(self: *Bug, delta_time: f32, wave: *Wave, ram: *f32, game: *Game) void {
         self.animation_time += delta_time;
         if (self.animation_time > animationSwitchThreshold(self.kind)) {
             self.animation_time = 0;
@@ -145,8 +145,25 @@ const Bug = struct {
             }
             if (target.x == 0 and target.y == 0) {
                 if (wave.get(target_grid_x, target_grid_y) == .ram) {
-                    ram.* = @max(ram.* - self.memory(), 0);
                     self.dead = true;
+                    const prev_ram_percentage = ram.* / ScreenBattle.max_ram;
+                    ram.* = @max(ram.* - self.memory(), 0);
+                    const ram_percentage = ram.* / ScreenBattle.max_ram;
+
+                    const is_75 = prev_ram_percentage > 0.75 and ram_percentage <= 0.75;
+                    const is_50 = prev_ram_percentage > 0.5 and ram_percentage <= 0.5;
+                    const is_25 = prev_ram_percentage > 0.25 and ram_percentage <= 0.25;
+                    const is_0 = prev_ram_percentage > 0 and ram_percentage <= 0;
+                    if (is_75 or is_50 or is_25 or is_0) {
+                        rl.playSound(game.sound_map.get(.ram_destroyed).?);
+                        if (is_0) {
+                            // TODO: game over (if we don't want the crash "ending" we can move to a game over screen or something)
+                            std.time.sleep(std.time.ns_per_ms * 500);
+                            unreachable;
+                        }
+                    } else {
+                        rl.playSound(game.sound_map.get(.bug_attack).?);
+                    }
                 } else {
                     unreachable;
                 }
@@ -269,18 +286,22 @@ const Cpu = struct {
         };
     }
 
-    fn upgradeBusWidth(self: *Cpu) void {
+    fn upgradeBusWidth(self: *Cpu) bool {
         if (self.upgrades < self.level()) {
             self.upgrades += 1;
             self.bus_width += 1;
+            return true;
         }
+        return false;
     }
 
-    fn upgradeCacheSize(self: *Cpu) void {
+    fn upgradeCacheSize(self: *Cpu) bool {
         if (self.upgrades < self.level()) {
             self.upgrades += 1;
             self.cache_size += 0.5;
+            return true;
         }
+        return false;
     }
 
     fn hasUpgrades(self: Cpu) bool {
@@ -424,7 +445,7 @@ const Wave = struct {
         return wave;
     }
 
-    fn update(self: *Wave, delta_time: f32, ram: *f32) void {
+    fn update(self: *Wave, delta_time: f32, ram: *f32, game: *Game) void {
         // TODO: quite a bit of logic here
         self.time_since_start += delta_time;
 
@@ -453,7 +474,7 @@ const Wave = struct {
             if (bug.dead) {
                 continue;
             }
-            bug.update(delta_time, self, ram);
+            bug.update(delta_time, self, ram, game);
         }
     }
 
@@ -556,10 +577,15 @@ const Game = struct {
         texture_map.put(.upgrade_popup, upgrade_popup) catch unreachable;
 
         const bug_death = rl.loadSound("assets/sfx/bug-death.wav") catch unreachable;
+        rl.setSoundVolume(bug_death, 0.3);
         const bug_attack = rl.loadSound("assets/sfx/bug-attack.wav") catch unreachable;
+        rl.setSoundVolume(bug_attack, 0.5);
         const ram_destroyed = rl.loadSound("assets/sfx/ram-destroyed.wav") catch unreachable;
+        rl.setSoundVolume(ram_destroyed, 0.8);
         const cpu_place = rl.loadSound("assets/sfx/cpu-place.mp3") catch unreachable;
+        rl.setSoundVolume(cpu_place, 0.8);
         const cpu_upgrade = rl.loadSound("assets/sfx/cpu-upgrade.wav") catch unreachable;
+        rl.setSoundVolume(cpu_upgrade, 0.8);
         sound_map.put(.bug_death, bug_death) catch unreachable;
         sound_map.put(.bug_attack, bug_attack) catch unreachable;
         sound_map.put(.ram_destroyed, ram_destroyed) catch unreachable;
@@ -771,8 +797,8 @@ const ScreenBattle = struct {
     fn update(self: *ScreenBattle, game: *Game, dt: f32) void {
         self.handlePlayerInput(game, dt);
 
-        self.wave.update(dt, &self.ram);
-        self.updateCpuAndBugs(dt);
+        self.wave.update(dt, &self.ram, game);
+        self.updateCpuAndBugs(game, dt);
 
         self.updateCamera();
     }
@@ -800,14 +826,16 @@ const ScreenBattle = struct {
                 rl.playSound(game.sound_map.get(.cpu_place).?);
             } else if (self.wave.get(mx, my) == .cpu) {
                 var cpu = &self.wave.at(mx, my).?.cpu;
-                cpu.upgradeBusWidth();
-                rl.playSound(game.sound_map.get(.cpu_upgrade).?);
+                if (cpu.upgradeBusWidth()) {
+                    rl.playSound(game.sound_map.get(.cpu_upgrade).?);
+                }
             }
         } else if (rl.isMouseButtonPressed(rl.MouseButton.right)) {
             if (self.wave.get(mx, my) == .cpu) {
                 var cpu = &self.wave.at(mx, my).?.cpu;
-                cpu.upgradeCacheSize();
-                rl.playSound(game.sound_map.get(.cpu_upgrade).?);
+                if (cpu.upgradeCacheSize()) {
+                    rl.playSound(game.sound_map.get(.cpu_upgrade).?);
+                }
             }
 
             if (edit) {
@@ -825,7 +853,7 @@ const ScreenBattle = struct {
         }
     }
 
-    fn updateCpuAndBugs(self: *ScreenBattle, dt: f32) void {
+    fn updateCpuAndBugs(self: *ScreenBattle, game: *Game, dt: f32) void {
         const map = self.wave.map;
 
         for (0..map.len) |y| {
@@ -857,6 +885,7 @@ const ScreenBattle = struct {
 
                             if (bug.damage(cpu.damage() * dt)) {
                                 cpu.debugs += 1;
+                                rl.playSound(game.sound_map.get(.bug_death).?);
                             }
                             count += 1;
                         }
