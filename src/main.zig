@@ -60,6 +60,10 @@ const Bug = struct {
     position: rl.Vector2,
     previous: rl.Vector2, // Center of prev
     target: rl.Vector2, // Center of next cell
+    animation_time: f32 = 0,
+    animation_state: f32 = 0,
+    const animation_switch_threshold = 0.3; // seconds
+
     // TODO: bugs need to know their "previous" square, so they know their next
 
     pub fn init(kind: BugKind, position: rl.Vector2) Bug {
@@ -460,13 +464,23 @@ const ScreenBattle = struct {
                 }
             }
 
+            const half_cell = cell_size / 2;
+            if (self.wave.bugs.items.len == 0) {
+                self.wave.bugs.append(Bug.init(.stack_overflow, rl.Vector2.init(half_cell, 4 * cell_size + half_cell))) catch unreachable;
+            }
+
             for (self.wave.bugs.items) |bug| {
                 const texture = switch (bug.kind) {
                     .nullptr_deref => game.texture_map.get(.bug_null).?,
                     .stack_overflow => game.texture_map.get(.bug_stackoverflow).?,
                     .infinite_loop => game.texture_map.get(.bug_while).?,
                 };
-                rl.drawTexture(texture, @intCast(bug.position.x), @intCast(bug.position.y), rl.Color.white);
+                rl.drawTextureRec(
+                    texture,
+                    .{ .x = bug.animation_state * cell_size, .y = 0, .width = cell_size, .height = cell_size },
+                    .{ .x = bug.position.x - half_cell, .y = bug.position.y - half_cell },
+                    rl.Color.white,
+                );
             }
         }
 
@@ -492,8 +506,9 @@ const ScreenBattle = struct {
             \\FPS: {}
             \\Screen: {}x{}
             \\World: {}x{} ({})
+            \\Bugs: {}
         ,
-            .{ rl.getFPS(), screenWidth, screenHeight, world_width, world_height, cell_size },
+            .{ rl.getFPS(), screenWidth, screenHeight, world_width, world_height, cell_size, self.wave.bugs.items.len },
         ) catch return;
 
         rl.drawText(debug_info, 20, 20, font_size, .black);
