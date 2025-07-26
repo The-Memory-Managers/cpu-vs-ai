@@ -64,8 +64,6 @@ const Bug = struct {
     animation_state: f32 = 0,
     const animation_switch_threshold = 0.3; // seconds
 
-    // TODO: bugs need to know their "previous" square, so they know their next
-
     pub fn init(kind: BugKind, position: rl.Vector2) Bug {
         return Bug{
             .kind = kind,
@@ -74,6 +72,51 @@ const Bug = struct {
             .previous = position,
             .target = position.add(rl.Vector2.init(cell_size, 0)), // 1 unit to the right
         };
+    }
+
+    pub fn update(self: *Bug, delta_time: f32, wave: *Wave) void {
+        self.animation_time += delta_time;
+        if (self.animation_time > animation_switch_threshold) {
+            self.animation_time = 0;
+            self.animation_state = (self.animation_state + 1) % self.animationCount();
+        }
+
+        var velocity: rl.Vector2 = self.target.sub(self.position);
+        velocity.normalize().multiply(speed(self.kind));
+        self.position = self.position.add(velocity);
+
+        // 1 is 1/32th of a cell
+        if (self.position.distanceSqr(self.target) < 1) {
+            // Find new target
+            const prev_grid_x = self.previous.x / cell_size;
+            const prev_grid_y = self.previous.y / cell_size;
+            const target_grid_x = self.target.x / cell_size;
+            const target_grid_y = self.target.y / cell_size;
+
+            const lane_left = wave.get(target_grid_x - 1, target_grid_y).isLaneConnected();
+            const lane_right = wave.get(target_grid_x + 1, target_grid_y).isLaneConnected();
+            // TODO: are these correct or flipped
+            const lane_top = wave.get(target_grid_x, target_grid_y - 1).isLaneConnected();
+            const lane_bottom = wave.get(target_grid_x, target_grid_y + 1).isLaneConnected();
+
+            var target: rl.Vector2 = undefined;
+            if (lane_left and prev_grid_x != target_grid_x - 1) {
+                target = self.target.add(rl.Vector2.init(-cell_size, 0));
+            } else if (lane_right and prev_grid_x != target_grid_x + 1) {
+                target = self.target.add(rl.Vector2.init(cell_size, 0));
+            } else if (lane_top and prev_grid_y != target_grid_y - 1) {
+                // TODO: are these correct or flipped
+                target = self.target.add(rl.Vector2.init(0, -cell_size));
+            } else if (lane_bottom and prev_grid_y != target_grid_y + 1) {
+                // TODO: are these correct or flipped
+                target = self.target.add(rl.Vector2.init(0, cell_size));
+            } else {
+                unreachable;
+            }
+
+            self.previous = self.target;
+            self.target = target;
+        }
     }
 
     pub fn maxHealth(kind: BugKind) f32 {
@@ -98,6 +141,14 @@ const Bug = struct {
             .stack_overflow => return 2,
             .infinite_loop => return 0.5,
         } * self.health;
+    }
+
+    fn animationCount(kind: BugKind) f32 {
+        return switch (kind) {
+            .nullptr_deref => return 2,
+            .stack_overflow => return 2,
+            .infinite_loop => return 6,
+        };
     }
 };
 
@@ -466,9 +517,6 @@ const ScreenBattle = struct {
             }
 
             const half_cell = cell_size / 2;
-            if (self.wave.bugs.items.len == 0) {
-                self.wave.bugs.append(Bug.init(.stack_overflow, rl.Vector2.init(half_cell, 4 * cell_size + half_cell))) catch unreachable;
-            }
 
             for (self.wave.bugs.items) |bug| {
                 const texture = switch (bug.kind) {
