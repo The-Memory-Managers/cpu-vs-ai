@@ -33,12 +33,12 @@ pub fn main() anyerror!void {
     rl.initAudioDevice();
     defer rl.closeAudioDevice();
 
+    var game = Game.init();
+    defer game.deinit();
+
     rl.setTargetFPS(60); // Set our game to run at 60 frames-per-second
     rl.setExitKey(.caps_lock);
     //--------------------------------------------------------------------------------------
-
-    var game = Game.init();
-    defer game.deinit();
 
     // Main game loop
     while (!rl.windowShouldClose()) { // Detect window close button or ESC key
@@ -759,9 +759,7 @@ const ScreenBattle = struct {
     }
 
     fn update(self: *ScreenBattle, game: *Game, dt: f32) void {
-        _ = game;
-
-        self.handlePlayerInput(dt);
+        self.handlePlayerInput(game, dt);
 
         self.wave.update(dt, &self.ram);
         self.updateCpuAndBugs(dt);
@@ -769,7 +767,7 @@ const ScreenBattle = struct {
         self.updateCamera();
     }
 
-    fn handlePlayerInput(self: *ScreenBattle, dt: f32) void {
+    fn handlePlayerInput(self: *ScreenBattle, game: *Game, dt: f32) void {
         _ = dt;
 
         const msp = rl.getMousePosition().scale(1 / self.camera.zoom);
@@ -788,14 +786,17 @@ const ScreenBattle = struct {
             if (self.wave.get(mx, my) == .socket and self.transistors >= cpu_transistor_cost) {
                 self.wave.set(mx, my, .{ .cpu = .{} });
                 // self.transistors -= cpu_transistor_cost; // TODO: uncomment when playtesting
+                rl.playSound(game.sound_map.get(.cpu_place).?);
             } else if (self.wave.get(mx, my) == .cpu) {
                 var cpu = &self.wave.at(mx, my).?.cpu;
                 cpu.upgradeBusWidth();
+                rl.playSound(game.sound_map.get(.cpu_upgrade).?);
             }
         } else if (rl.isMouseButtonPressed(rl.MouseButton.right)) {
             if (self.wave.get(mx, my) == .cpu) {
                 var cpu = &self.wave.at(mx, my).?.cpu;
                 cpu.upgradeCacheSize();
+                rl.playSound(game.sound_map.get(.cpu_upgrade).?);
             }
 
             if (edit) {
