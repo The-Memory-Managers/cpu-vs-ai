@@ -232,9 +232,9 @@ const Cpu = struct {
             // TODO: only for debug (change this once ready for play testing)
             0...2 => 1,
             3...4 => 2,
-            5...6 => 3,
-            7...8 => 4,
-            else => 5,
+            5...6 => 4,
+            7...8 => 8,
+            else => 16,
             // 0...9 => 1,
             // 10...24 => 2,
             // 25...49 => 3,
@@ -995,9 +995,16 @@ const ScreenBattle = struct {
                     rl.Color.white,
                 );
             },
-            .cpu => {
+            .cpu => |cpu| {
                 const texture = game.texture_map.get(.cpu).?;
-                rl.drawTexture(texture, @intCast(x * cell_size), @intCast(y * cell_size), rl.Color.white);
+
+                const offset: f32 = @floatFromInt(cpu.cores() - 1);
+                rl.drawTextureRec(
+                    texture,
+                    .{ .x = offset * cell_size, .y = 0, .width = cell_size, .height = cell_size },
+                    .{ .x = @floatFromInt(x * cell_size), .y = @floatFromInt(y * cell_size) },
+                    rl.Color.white,
+                );
             },
             .ai => {
                 const texture = game.texture_map.get(.ai).?;
