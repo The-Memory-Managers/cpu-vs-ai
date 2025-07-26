@@ -8,7 +8,9 @@ const cells_width = 16.0;
 const cells_height = 9.0;
 const world_width = cells_width * cell_size;
 const world_height = cells_height * cell_size;
+
 const bg_color = rl.Color.init(0x20, 0x2e, 0x37, 0xFF);
+const highlight_color = rl.Color.init(0x57, 0x72, 0x77, 0xFF);
 
 const debug = true;
 const edit = debug and false;
@@ -145,7 +147,7 @@ const Bug = struct {
     pub fn maxHealth(kind: BugKind) f32 {
         return switch (kind) {
             .nullptr_deref => return 3,
-            .stack_overflow => return 10,
+            .stack_overflow => return 100,
             .infinite_loop => return 1,
         };
     }
@@ -220,10 +222,11 @@ const Cpu = struct {
     cache_size: f32 = 1.5, // Cache size, range (distance for attack)
     debugs: u32 = 0, // How many bugs were killed
     instructions: [max_instructions]Instruction = [_]Instruction{.{}} ** max_instructions, // modifiers
+    upgrades: u32 = 1, // TODO: remove this after hackathon, for a better instruction system
+
     const max_instructions = 5;
 
     fn damage(self: Cpu) f32 {
-        // TODO: take instructions into account
         return self.bus_width;
     }
 
@@ -251,6 +254,24 @@ const Cpu = struct {
             // 50...100 => 4,
             // else => 5,
         };
+    }
+
+    fn upgradeBusWidth(self: *Cpu) void {
+        if (self.upgrades < self.level()) {
+            self.upgrades += 1;
+            self.bus_width += 1;
+        }
+    }
+
+    fn upgradeCacheSize(self: *Cpu) void {
+        if (self.upgrades < self.level()) {
+            self.upgrades += 1;
+            self.cache_size += 0.5;
+        }
+    }
+
+    fn hasUpgrades(self: Cpu) bool {
+        return self.upgrades < self.level();
     }
 };
 
@@ -461,6 +482,7 @@ const TextureKind = enum {
     bug_stackoverflow,
     transistor,
     cpu_pins,
+    upgrade_popup,
 };
 
 const Game = struct {
@@ -495,6 +517,7 @@ const Game = struct {
         const transistor = rl.loadTexture("assets/img/transistor.png") catch unreachable;
         const cpu_pins = rl.loadTexture("assets/img/cpu_pins.png") catch unreachable;
         const cpu = rl.loadTexture("assets/img/cpu.png") catch unreachable;
+        const upgrade_popup = rl.loadTexture("assets/img/upgrade-popup.png") catch unreachable;
         texture_map.put(.cpus_vs_bugs, cpus_vs_bugs) catch unreachable;
         texture_map.put(.power_button, power_button) catch unreachable;
         texture_map.put(.socket, socket) catch unreachable;
@@ -507,6 +530,7 @@ const Game = struct {
         texture_map.put(.transistor, transistor) catch unreachable;
         texture_map.put(.cpu_pins, cpu_pins) catch unreachable;
         texture_map.put(.cpu, cpu) catch unreachable;
+        texture_map.put(.upgrade_popup, upgrade_popup) catch unreachable;
 
         const font_title = rl.loadFontEx("assets/font/DepartureMonoNerdFontMono-Regular.otf", 80, null) catch unreachable;
         const font_normal = rl.loadFontEx("assets/font/GohuFont14NerdFontMono-Regular.ttf", 80, null) catch unreachable;
@@ -687,6 +711,8 @@ const ScreenBattle = struct {
     ram: f32, // health of the player
     transistors: f32 = 0,
 
+    popup: bool = false,
+
     const max_ram = 100;
     const cpu_transistor_cost = 100;
 
@@ -737,9 +763,19 @@ const ScreenBattle = struct {
             if (self.wave.get(mx, my) == .socket and self.transistors >= cpu_transistor_cost) {
                 self.wave.set(mx, my, .{ .cpu = .{} });
                 // self.transistors -= cpu_transistor_cost; // TODO: uncomment when playtesting
+            } else if (self.wave.get(mx, my) == .cpu) {
+                var cpu = &self.wave.at(mx, my).?.cpu;
+                cpu.upgradeBusWidth();
             }
-        } else if (rl.isMouseButtonPressed(rl.MouseButton.right) and edit) {
-            self.wave.set(mx, my, .none);
+        } else if (rl.isMouseButtonPressed(rl.MouseButton.right)) {
+            if (self.wave.get(mx, my) == .cpu) {
+                var cpu = &self.wave.at(mx, my).?.cpu;
+                cpu.upgradeCacheSize();
+            }
+
+            if (edit) {
+                self.wave.set(mx, my, .none);
+            }
         }
 
         if (rl.isKeyPressed(rl.KeyboardKey.s) and debug) {
@@ -820,6 +856,8 @@ const ScreenBattle = struct {
         const a = game.frame_arena.allocator();
         const map = self.wave.map;
         const half_cell = cell_size / 2;
+
+        self.popup = false; // reset popup
 
         {
             rl.beginMode2D(self.camera);
@@ -923,6 +961,21 @@ const ScreenBattle = struct {
                 1,
                 .white,
             );
+
+            if (self.popup) {
+                const msp = rl.getMousePosition().scale(1 / self.camera.zoom);
+                const upgrade_texture = game.texture_map.get(.upgrade_popup).?;
+                const scale = 2;
+                const pos = msp.subtract(.{ .x = cell_size / 2 * scale, .y = cell_size * scale });
+                rl.drawTexturePro(
+                    upgrade_texture,
+                    .{ .x = 0, .y = 0, .width = cell_size, .height = cell_size },
+                    .{ .x = pos.x, .y = pos.y, .width = cell_size * scale, .height = cell_size * scale },
+                    rl.Vector2.zero(),
+                    0,
+                    rl.Color.white,
+                );
+            }
         }
 
         if (debug) {
@@ -1008,6 +1061,20 @@ const ScreenBattle = struct {
             .cpu => |cpu| {
                 const texture = game.texture_map.get(.cpu).?;
 
+                const msp = rl.getMousePosition().scale(1 / self.camera.zoom);
+                const mx: usize = @intFromFloat(msp.x / cell_size);
+                const my: usize = @intFromFloat(msp.y / cell_size);
+                const hovered = mx == x and my == y;
+                if (hovered) {
+                    rl.drawRectangle(
+                        @intCast(x * cell_size),
+                        @intCast(y * cell_size),
+                        cell_size,
+                        cell_size,
+                        highlight_color,
+                    );
+                }
+
                 const offset: f32 = @floatFromInt(cpu.level() - 1);
                 rl.drawTextureRec(
                     texture,
@@ -1015,6 +1082,10 @@ const ScreenBattle = struct {
                     .{ .x = @floatFromInt(x * cell_size), .y = @floatFromInt(y * cell_size) },
                     rl.Color.white,
                 );
+
+                if (cpu.hasUpgrades() and hovered) {
+                    self.popup = true;
+                }
             },
             .ai => {
                 const texture = game.texture_map.get(.ai).?;
