@@ -15,9 +15,9 @@
         ];
 
         buildInputs = with pkgs; [
+          alsa-lib
           xorg.libX11 xorg.libXcursor xorg.libXi xorg.libXrandr xorg.libXinerama # For x11
           libxkbcommon wayland glfw-wayland wayland-scanner # For wayland
-          SDL
         ];
 
       in {
