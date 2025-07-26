@@ -622,7 +622,7 @@ const Game = struct {
     fn process(self: *Game) void {
         const dt = rl.getFrameTime();
 
-        std.debug.print("Delta time: {d}\n", .{dt});
+        // std.debug.print("Delta time: {d}\n", .{dt});
 
         // TODO: find a better method of mutating the original
         switch (self.screen_state) {
@@ -1127,7 +1127,7 @@ const ScreenBattle = struct {
             .cpu => |cpu| {
                 const texture = game.texture_map.get(.cpu).?;
 
-                const msp = rl.getMousePosition().scale(1 / self.camera.zoom);
+                const msp = getMousePos(&self.camera);
                 const mx: usize = @intFromFloat(msp.x / cell_size);
                 const my: usize = @intFromFloat(msp.y / cell_size);
                 const hovered = mx == x and my == y;
