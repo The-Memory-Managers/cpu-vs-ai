@@ -243,15 +243,14 @@ const Wave = struct {
         const ai_position = rl.Vector2.init(half_cell, 4 * cell_size + half_cell);
 
         // TODO: post hackathon, optimize this
-        for (self.spawn_rules) |*rules| {
-            for (0.., rules.bugs) |i, bug| {
-                bug.last_spawn += delta_time;
-                if (bug.last_spawn >= bug.spawn_interval) {
-                    bug.last_spawn -= bug.spawn_interval;
-                    self.bugs.append(Bug.init(i, ai_position)) catch unreachable;
+        for (self.spawn_rules.items) |*rules| {
+            for (0..rules.bugs.len) |i| {
+                rules.bugs[i].last_spawn += delta_time;
+                if (rules.bugs[i].last_spawn >= rules.bugs[i].spawn_interval) {
+                    rules.bugs[i].last_spawn -= rules.bugs[i].spawn_interval;
+                    self.bugs.append(Bug.init(@enumFromInt(i), ai_position)) catch unreachable;
                     // TODO: spawn bug
                     // Should initialize it at the center of AI
-                    //
                 }
             }
         }
@@ -422,7 +421,9 @@ const ScreenBattle = struct {
 
     fn update(self: *ScreenBattle, game: *Game, dt: f32) void {
         _ = game;
-        _ = dt;
+
+        self.wave.update(dt);
+
         self.updateCamera();
     }
 
@@ -475,12 +476,15 @@ const ScreenBattle = struct {
                     .stack_overflow => game.texture_map.get(.bug_stackoverflow).?,
                     .infinite_loop => game.texture_map.get(.bug_while).?,
                 };
+
                 rl.drawTextureRec(
                     texture,
                     .{ .x = bug.animation_state * cell_size, .y = 0, .width = cell_size, .height = cell_size },
                     .{ .x = bug.position.x - half_cell, .y = bug.position.y - half_cell },
                     rl.Color.white,
                 );
+
+                rl.drawTexture(texture, @intFromFloat(bug.position.x), @intFromFloat(bug.position.y), rl.Color.white);
             }
         }
 
