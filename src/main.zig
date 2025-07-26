@@ -76,22 +76,22 @@ const Bug = struct {
 
     pub fn update(self: *Bug, delta_time: f32, wave: *Wave) void {
         self.animation_time += delta_time;
-        if (self.animation_time > animation_switch_threshold) {
-            self.animation_time = 0;
-            self.animation_state = (self.animation_state + 1) % self.animationCount();
-        }
+        // if (self.animation_time > animation_switch_threshold) {
+        //     self.animation_time = 0;
+        //     self.animation_state = @mod((self.animation_state + 1), animationCount(self.kind));
+        // }
 
-        var velocity: rl.Vector2 = self.target.sub(self.position);
-        velocity.normalize().multiply(speed(self.kind));
+        var velocity: rl.Vector2 = self.target.subtract(self.position);
+        velocity = velocity.normalize().scale(speed(self.kind));
         self.position = self.position.add(velocity);
 
         // 1 is 1/32th of a cell
         if (self.position.distanceSqr(self.target) < 1) {
             // Find new target
-            const prev_grid_x = self.previous.x / cell_size;
-            const prev_grid_y = self.previous.y / cell_size;
-            const target_grid_x = self.target.x / cell_size;
-            const target_grid_y = self.target.y / cell_size;
+            const prev_grid_x: usize = @intFromFloat(self.previous.x / cell_size);
+            const prev_grid_y: usize = @intFromFloat(self.previous.y / cell_size);
+            const target_grid_x: usize = @intFromFloat(self.target.x / cell_size);
+            const target_grid_y: usize = @intFromFloat(self.target.y / cell_size);
 
             const lane_left = wave.get(target_grid_x - 1, target_grid_y).isLaneConnected();
             const lane_right = wave.get(target_grid_x + 1, target_grid_y).isLaneConnected();
@@ -99,18 +99,36 @@ const Bug = struct {
             const lane_top = wave.get(target_grid_x, target_grid_y - 1).isLaneConnected();
             const lane_bottom = wave.get(target_grid_x, target_grid_y + 1).isLaneConnected();
 
-            var target: rl.Vector2 = undefined;
+            std.debug.print("prev_grid_x: {}, prev_grid_y: {}\n", .{ prev_grid_x, prev_grid_y });
+            std.debug.print("target_grid_x: {}, target_grid_y: {}\n", .{ target_grid_x, target_grid_y });
+
+            std.debug.print("lane left: {}, lane right: {}, lane top: {}, lane bottom: {}\n", .{
+                lane_left,
+                lane_right,
+                lane_top,
+                lane_bottom,
+            });
+
+            var target: rl.Vector2 = rl.Vector2.init(0, 0);
             if (lane_left and prev_grid_x != target_grid_x - 1) {
                 target = self.target.add(rl.Vector2.init(-cell_size, 0));
-            } else if (lane_right and prev_grid_x != target_grid_x + 1) {
+                std.debug.print("lane left\n", .{});
+            }
+            if (lane_right and prev_grid_x != target_grid_x + 1) {
                 target = self.target.add(rl.Vector2.init(cell_size, 0));
-            } else if (lane_top and prev_grid_y != target_grid_y - 1) {
+                std.debug.print("lane right\n", .{});
+            }
+            if (lane_top and prev_grid_y != target_grid_y - 1) {
                 // TODO: are these correct or flipped
                 target = self.target.add(rl.Vector2.init(0, -cell_size));
-            } else if (lane_bottom and prev_grid_y != target_grid_y + 1) {
+                std.debug.print("lane top\n", .{});
+            }
+            if (lane_bottom and prev_grid_y != target_grid_y + 1) {
                 // TODO: are these correct or flipped
                 target = self.target.add(rl.Vector2.init(0, cell_size));
-            } else {
+                std.debug.print("lane bottom\n", .{});
+            }
+            if (target.x == 0 and target.y == 0) {
                 unreachable;
             }
 
@@ -129,9 +147,9 @@ const Bug = struct {
 
     fn speed(kind: BugKind) f32 {
         return switch (kind) {
-            .nullptr_deref => return 30,
-            .stack_overflow => return 10,
-            .infinite_loop => return 100,
+            .nullptr_deref => return 0.3,
+            .stack_overflow => return 0.1,
+            .infinite_loop => return 1,
         };
     }
 
@@ -197,7 +215,7 @@ const Cell = union(enum) {
 
     fn isLaneConnected(self: Cell) bool {
         return switch (self) {
-            .lane => false,
+            .lane => true,
             .ai => true,
             else => false,
         };
@@ -239,26 +257,35 @@ const Wave = struct {
                     .{ .spawn_interval = 0 },
                 },
             }) catch unreachable;
-
-            spawn_rules.append(.{
-                .from_time_s = 10,
-                .to_time_s = 20,
-                .bugs = .{
-                    .{ .spawn_interval = 2 },
-                    .{ .spawn_interval = 0.5 },
-                    .{ .spawn_interval = 0 },
-                },
-            }) catch unreachable;
-
-            spawn_rules.append(.{
-                .from_time_s = 20,
-                .to_time_s = 30,
-                .bugs = .{
-                    .{ .spawn_interval = 5 },
-                    .{ .spawn_interval = 1 },
-                    .{ .spawn_interval = 0.5 },
-                },
-            }) catch unreachable;
+            // spawn_rules.append(.{
+            //     .from_time_s = 0,
+            //     .to_time_s = 10,
+            //     .bugs = .{
+            //         .{ .spawn_interval = 1 },
+            //         .{ .spawn_interval = 0 },
+            //         .{ .spawn_interval = 0 },
+            //     },
+            // }) catch unreachable;
+            //
+            // spawn_rules.append(.{
+            //     .from_time_s = 10,
+            //     .to_time_s = 20,
+            //     .bugs = .{
+            //         .{ .spawn_interval = 2 },
+            //         .{ .spawn_interval = 0.5 },
+            //         .{ .spawn_interval = 0 },
+            //     },
+            // }) catch unreachable;
+            //
+            // spawn_rules.append(.{
+            //     .from_time_s = 20,
+            //     .to_time_s = 30,
+            //     .bugs = .{
+            //         .{ .spawn_interval = 5 },
+            //         .{ .spawn_interval = 1 },
+            //         .{ .spawn_interval = 0.5 },
+            //     },
+            // }) catch unreachable;
         } else if (wave_number == 2) {} else if (wave_number == 3) {}
 
         var wave = Wave{
@@ -295,15 +322,24 @@ const Wave = struct {
 
         // TODO: post hackathon, optimize this
         for (self.spawn_rules.items) |*rules| {
+            if (rules.from_time_s > self.time_since_start or rules.to_time_s < self.time_since_start) {
+                continue;
+            }
             for (0..rules.bugs.len) |i| {
+                if (rules.bugs[i].spawn_interval == 0) {
+                    continue;
+                }
+
                 rules.bugs[i].last_spawn += delta_time;
                 if (rules.bugs[i].last_spawn >= rules.bugs[i].spawn_interval) {
                     rules.bugs[i].last_spawn -= rules.bugs[i].spawn_interval;
                     self.bugs.append(Bug.init(@enumFromInt(i), ai_position)) catch unreachable;
-                    // TODO: spawn bug
-                    // Should initialize it at the center of AI
                 }
             }
+        }
+
+        for (self.bugs.items) |*bug| {
+            bug.update(delta_time, self);
         }
     }
 
@@ -531,8 +567,6 @@ const ScreenBattle = struct {
                     .{ .x = bug.position.x - half_cell, .y = bug.position.y - half_cell },
                     rl.Color.white,
                 );
-
-                rl.drawTexture(texture, @intFromFloat(bug.position.x), @intFromFloat(bug.position.y), rl.Color.white);
             }
         }
 
