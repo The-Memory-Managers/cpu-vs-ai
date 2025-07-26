@@ -10,7 +10,7 @@ const world_width = cells_width * cell_size;
 const world_height = cells_height * cell_size;
 const bg_color = rl.Color.init(0x20, 0x2e, 0x37, 0xFF);
 
-const debug = true;
+const debug = false;
 
 var screenWidth: i32 = 1280;
 var screenHeight: i32 = 720;
@@ -634,11 +634,16 @@ const ScreenBattle = struct {
             } else if (self.wave.get(mx, my) == .none and debug) {
                 self.wave.set(mx, my, .socket);
             }
+
+            // if (self.wave.get(mx, my) == .socket) {
+            //     self.wave.set(mx, my, .cpu);
+            // }
+
         } else if (rl.isMouseButtonPressed(rl.MouseButton.right) and debug) {
             self.wave.set(mx, my, .none);
         }
 
-        if (rl.isKeyPressed(rl.KeyboardKey.s)) {
+        if (rl.isKeyPressed(rl.KeyboardKey.s) and debug) {
             const f = std.io.getStdErr().writer();
             std.zon.stringify.serializeArbitraryDepth(self.wave.map, .{
                 .whitespace = false,
