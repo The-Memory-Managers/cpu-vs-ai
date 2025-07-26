@@ -798,6 +798,30 @@ const ScreenGameOver = struct {
         if (self.pressed_menu) {
             game.screen_state = .{ .main = .init() };
         }
+
+        self.updateCamera();
+    }
+
+    fn updateCamera(self: *ScreenGameOver) void {
+        screen_width = rl.getScreenWidth();
+        screen_height = rl.getScreenHeight();
+
+        self.camera.offset = .{
+            .x = @as(f32, @floatFromInt(screen_width)) / 2,
+            .y = @as(f32, @floatFromInt(screen_height)) / 2,
+        };
+
+        self.camera.target = .{
+            .x = world_width / 2.0,
+            .y = world_height / 2.0,
+        };
+
+        // Take the average between the ratios
+        // This avoids "cheating" by changing the ratio to an extreme value
+        // in order to see more terrain in a certain axis
+        const width_ratio = @as(f32, @floatFromInt(screen_width)) / world_width;
+        const height_ratio = @as(f32, @floatFromInt(screen_height)) / world_height;
+        self.camera.zoom = (width_ratio + height_ratio) / 2;
     }
 
     fn render(self: *ScreenGameOver, game: *Game) void {
