@@ -866,6 +866,9 @@ const ScreenGameOver = struct {
     game_over_spacing: f32 = 1.0,
     game_over_color: rl.Color = rl.Color.red,
     game_over_measurement: rl.Vector2 = .{ .x = 0, .y = 0 },
+    game_over_widths: [9]f32 = undefined,
+    game_over_height: f32 = 0,
+    game_over_character_count: usize = 0,
     initiated: bool = false,
 
     const button_menu_width: f32 = @floatFromInt(cell_size * 7);
@@ -927,16 +930,28 @@ const ScreenGameOver = struct {
         defer rl.endMode2D();
 
         if (!self.initiated) {
-            self.game_over_measurement = rl.measureTextEx(game.font_title, self.game_over_text, self.game_over_size, self.game_over_spacing);
+            var i: usize = 0;
+            const len: usize = self.game_over_text.len;
+            if (len != self.game_over_widths.len) {
+                std.log.err("Game over text length isn't covered properly. adjust ScreenGameOver.game_over_widths accordingly to {} instead of {}", .{ len, self.game_over_widths.len });
+                return;
+            }
+            while (i < len) : (i += 1) {
+                const substring = self.game_over_text[i..];
+                const measurement = rl.measureTextEx(game.font_title, substring, self.game_over_size, self.game_over_spacing);
+                if (i == 0) {
+                    self.game_over_height = measurement.y;
+                }
+                self.game_over_widths[i] = measurement.x;
+            }
             self.initiated = true;
         }
 
-        const td = self.game_over_measurement;
+        const tx = self.game_over_widths[0];
+        const ty = self.game_over_height;
 
         // TODO: these labels are badly positioned
-
-        std.log.info("Text dimensions: x={}, y={}, world_width={}, world_height={}", .{ td.x, td.y, world_width, world_height });
-        rl.drawTextEx(game.font_title, self.game_over_text, .{ .x = (world_width - td.x) / 2, .y = (world_height - td.y) / 2 }, self.game_over_size, self.game_over_spacing, self.game_over_color);
+        rl.drawTextEx(game.font_title, self.game_over_text, .{ .x = (world_width - tx) / 2, .y = (world_height - ty) / 2 }, self.game_over_size, self.game_over_spacing, self.game_over_color);
 
         self.pressed_menu = labelButton(
             game,
