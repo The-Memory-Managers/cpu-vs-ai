@@ -1,7 +1,7 @@
 # CPU vs AI
 
-The AI chip on your motherboard lost control! the code it's generating is full of bugs!
-Place and upgrade your CPUs to destroy these bugs!
+The AI chip on your motherboard lost control! the code it's generating is full of bugs!  
+Place and upgrade your CPUs to destroy these bugs!  
 Don't let the bugs get across the PCIE lanes and corrupt your RAM!
 
 TODO: insert image here
@@ -45,3 +45,16 @@ The amount of CPU cores determine how many bugs it can attack in parallel.
 - Try positioning your CPUs differently, where they can control the most lanes
 - Try experimenting with different bus widths and cache sizes
 - If you still can't beat a level, you can skip it by pressing the "s" key
+
+### There is an easteregg, let us know if you found it!
+
+## Credits
+
+- **Code**  
+  Copyright (c) 2025 Kyren223, Nuclear Pasta, and GottZ. All rights reserved.
+
+- **Art (assets/img/\***)  
+  Copyright (c) 2025 Kyren223. All rights reserved.
+
+- **Audio (assets/sfx/\***)  
+  Sound effects and music are public domain, sourced from [https://freesound.org](https://freesound.org).
