@@ -87,6 +87,29 @@ fn textureButton(camera: *const rl.Camera2D, texture: rl.Texture2D, rect: rl.Rec
     return rect.checkCollision(ms_rect) and rl.isMouseButtonPressed(.left);
 }
 
+fn textureButtonScaled(camera: *const rl.Camera2D, texture: rl.Texture2D, pos: rl.Vector2, rotation: f32, scale: f32) bool {
+    const msp = getMousePos(camera);
+
+    rl.drawTextureEx(
+        texture,
+        pos,
+        rotation,
+        scale,
+        rl.Color.white,
+    );
+
+    const rect: rl.Rectangle = .{
+        .x = pos.x,
+        .y = pos.y,
+        .width = scale,
+        .height = scale,
+    };
+
+    const ms_rect = rl.Rectangle.init(msp.x, msp.y, 1, 1);
+
+    return rect.checkCollision(ms_rect) and rl.isMouseButtonPressed(.left);
+}
+
 fn labelButton(
     camera: *const rl.Camera2D,
     text: [:0]const u8,
@@ -708,7 +731,7 @@ const ScreenMainMenu = struct {
     camera: rl.Camera2D,
     pressed_start: bool = false,
 
-    const start_button_size: f32 = @floatFromInt(cell_size);
+    const start_button_size: f32 = @floatFromInt(cell_size * 2);
     const title_size: f32 = @floatFromInt(cell_size * 5);
 
     fn init() ScreenMainMenu {
@@ -761,16 +784,20 @@ const ScreenMainMenu = struct {
 
         rl.drawTextEx(game.font_title, "AI", title_pos.add(.{ .x = 100, .y = 5 }), 22, 3, rl.Color.white);
 
-        self.pressed_start = textureButton(
+        // TODO: this button doesn't show up for some reason
+
+        // I don't know enough about math and textures to fix this, unfortunately
+        // - Nuclear
+
+        self.pressed_start = textureButtonScaled(
             &self.camera,
             game.texture_map.get(.power_button).?,
-            rl.Rectangle.init(
+            rl.Vector2.init(
                 (world_width - ScreenMainMenu.start_button_size) / 2,
-                (world_height - ScreenMainMenu.start_button_size) / 2 + 40,
-                ScreenMainMenu.start_button_size,
-                ScreenMainMenu.start_button_size,
+                (world_height - ScreenMainMenu.start_button_size) / 2,
             ),
-            null,
+            20,
+            ScreenMainMenu.start_button_size,
         );
     }
 
@@ -889,12 +916,13 @@ const ScreenBattle = struct {
     camera: rl.Camera2D,
     wave: Wave,
     ram: f32, // health of the player
-    transistors: f32 = 0,
+    transistors: u32 = 0,
 
     popup: bool = false,
 
     const max_ram = 100;
     const cpu_transistor_cost = 100;
+    const transistors_per_bug = 10;
 
     fn init() ScreenBattle {
         return .{
@@ -950,7 +978,7 @@ const ScreenBattle = struct {
 
             if (self.wave.get(mx, my) == .socket and self.transistors >= cpu_transistor_cost) {
                 self.wave.set(mx, my, .{ .cpu = .{} });
-                // self.transistors -= cpu_transistor_cost; // TODO: uncomment when playtesting
+                self.transistors -= cpu_transistor_cost;
                 rl.playSound(game.sound_map.get(.cpu_place).?);
             } else if (self.wave.get(mx, my) == .cpu) {
                 var cpu = &self.wave.at(mx, my).?.cpu;
@@ -1015,6 +1043,11 @@ const ScreenBattle = struct {
                                 cpu.debugs += 1;
                                 rl.playSound(game.sound_map.get(.bug_death).?);
                             }
+
+                            if (bug.dead) {
+                                self.transistors += transistors_per_bug;
+                            }
+
                             count += 1;
                         }
                     },
