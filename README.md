@@ -1,4 +1,10 @@
-<img src="assets/img/icon-64.png" width="64" height="64" />
+<h1>
+  <img src="assets/img/icon.png"
+      width="64" height="64"
+      alt=""
+      align="middle"
+      style="height:1em; vertical-align:middle;" /> CPU vs AI
+</h1>
 
 # CPU vs AI
 
