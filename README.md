@@ -10,8 +10,6 @@ TODO: insert video link here
 
 ## Installation
 
-TODO: add wasm build?
-
 Clone the repository:
 
 ```
