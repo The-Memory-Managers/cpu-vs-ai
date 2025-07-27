@@ -785,8 +785,7 @@ const ScreenMainMenu = struct {
         self.updateCamera();
 
         if (self.pressed_start) {
-            const battle = ScreenBattle.init();
-            game.screen_state = .{ .battle = battle };
+            game.screen_state = .{ .battle = .init() };
         }
     }
 
@@ -976,7 +975,23 @@ const ScreenGameOver = struct {
             "Back to main menu",
             rl.Rectangle.init(
                 (world_width - ScreenGameOver.button_menu_width) / 2,
-                (world_height - ScreenGameOver.button_menu_height) / 2 + 40,
+                (world_height - ScreenGameOver.button_menu_height) / 2 + cell_size * 1.25,
+                ScreenGameOver.button_menu_width,
+                ScreenGameOver.button_menu_height,
+            ),
+            .{
+                .font = game.font_title,
+                .font_size = 10,
+                .spacing = 5,
+            },
+        );
+        self.pressed_retry = labelButton(
+            game,
+            &self.camera,
+            "Retry",
+            rl.Rectangle.init(
+                (world_width - ScreenGameOver.button_menu_width) / 2,
+                (world_height - ScreenGameOver.button_menu_height) / 2 + cell_size * 2.25,
                 ScreenGameOver.button_menu_width,
                 ScreenGameOver.button_menu_height,
             ),
