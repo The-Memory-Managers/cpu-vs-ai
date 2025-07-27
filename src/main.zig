@@ -794,12 +794,13 @@ const ScreenMainMenu = struct {
         rl.beginMode2D(self.camera);
         defer rl.endMode2D();
 
+        const scaling_factor = 2;
         const title_pos: rl.Vector2 = .{
-            .x = (world_width - ScreenMainMenu.title_size) / 2,
-            .y = (world_height - ScreenMainMenu.title_size) / 2 - 50,
+            .x = (world_width - (ScreenMainMenu.title_size * scaling_factor)) / 2,
+            .y = cell_size / 2, // padding
         };
 
-        rl.drawTextureRec(
+        rl.drawTexturePro(
             game.texture_map.get(.cpus_vs_bugs).?,
             .{
                 .x = 0,
@@ -807,26 +808,25 @@ const ScreenMainMenu = struct {
                 .width = ScreenMainMenu.title_size,
                 .height = cell_size,
             },
-            title_pos,
+            .{
+                .x = title_pos.x,
+                .y = title_pos.y,
+                .width = ScreenMainMenu.title_size * scaling_factor,
+                .height = cell_size * scaling_factor,
+            },
+            rl.Vector2.zero(),
+            0,
             rl.Color.white,
         );
 
-        rl.drawTextEx(game.font_title, "CPU", title_pos.add(.{ .x = 33, .y = 5 }), 22, 3, rl.Color.white);
-
-        rl.drawTextEx(game.font_title, "AI", title_pos.add(.{ .x = 100, .y = 5 }), 22, 3, rl.Color.white);
-
-        // TODO: this button doesn't show up for some reason
-
-        // I don't know enough about math and textures to fix this, unfortunately
-        // - Nuclear
-
+        const padding = cell_size + cell_size / 2;
         self.pressed_start = textureButtonScaled(
             game,
             &self.camera,
             game.texture_map.get(.power_button).?,
             rl.Vector2.init(
                 (world_width - ScreenMainMenu.start_button_size) / 2,
-                (world_height - ScreenMainMenu.start_button_size) / 2,
+                (world_height - ScreenMainMenu.start_button_size) / 2 + padding,
             ),
             0,
             ScreenMainMenu.start_button_scaling,
