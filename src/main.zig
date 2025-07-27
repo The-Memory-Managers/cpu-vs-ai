@@ -38,6 +38,10 @@ pub fn main() anyerror!void {
     var game = Game.init();
     defer game.deinit();
 
+    const music = rl.loadMusicStream("assets/sfx/music.wav") catch unreachable;
+    rl.setMusicVolume(music, 0.5);
+    rl.playMusicStream(music);
+
     rl.setTargetFPS(60); // Set our game to run at 60 frames-per-second
     rl.setExitKey(.caps_lock);
     //--------------------------------------------------------------------------------------
@@ -46,6 +50,7 @@ pub fn main() anyerror!void {
     while (!rl.windowShouldClose()) { // Detect window close button or ESC key
         // Update
         //----------------------------------------------------------------------------------
+        rl.updateMusicStream(music);
         game.process();
         //----------------------------------------------------------------------------------
 
@@ -952,10 +957,10 @@ const Game = struct {
             .font_title = font_title,
             .font_normal = font_normal,
             .screen_state = .{
-                // .main = .init(), // MARK
+                .main = .init(), // MARK
                 // .gameover = .init(),
                 // .victory = .init(),
-                .battle = .init(),
+                // .battle = .init(),
             },
         };
     }
