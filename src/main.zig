@@ -505,20 +505,6 @@ const Wave = struct {
                 .{ .none, .none, .none, .none, .none, .none, .none, .none, .none, .none, .none, .none, .none, .none, .none, .none },
             };
 
-            // spawn_rules.append(.{
-            //     .from_time_s = 0,
-            //     .to_time_s = 1.1,
-            //     .bugs = .{
-            //         // .{ .spawn_interval = 0.5 },
-            //         // .{ .spawn_interval = 0.5 },
-            //         // .{ .spawn_interval = 0.5 },
-            //         .{ .spawn_interval = 0 },
-            //         .{ .spawn_interval = 0 },
-            //         .{ .spawn_interval = 0 },
-            //     },
-            // }) catch unreachable;
-
-            // TODO: game design MARK
             spawn_rules.append(.{
                 .from_time_s = 0,
                 .to_time_s = 4,
@@ -602,11 +588,51 @@ const Wave = struct {
             // TODO: game design
             spawn_rules.append(.{
                 .from_time_s = 0,
-                .to_time_s = 30,
+                .to_time_s = 40,
+                .bugs = .{
+                    .{ .spawn_interval = 2 },
+                    .{ .spawn_interval = 0 },
+                    .{ .spawn_interval = 0 },
+                },
+            }) catch unreachable;
+
+            spawn_rules.append(.{
+                .from_time_s = 20,
+                .to_time_s = 60,
+                .bugs = .{
+                    .{ .spawn_interval = 0 },
+                    .{ .spawn_interval = 0 },
+                    .{ .spawn_interval = 3 },
+                },
+            }) catch unreachable;
+
+            spawn_rules.append(.{
+                .from_time_s = 20,
+                .to_time_s = 80,
+                .bugs = .{
+                    .{ .spawn_interval = 0 },
+                    .{ .spawn_interval = 5 },
+                    .{ .spawn_interval = 0 },
+                },
+            }) catch unreachable;
+
+            spawn_rules.append(.{
+                .from_time_s = 30,
+                .to_time_s = 80,
+                .bugs = .{
+                    .{ .spawn_interval = 0.8 },
+                    .{ .spawn_interval = 0 },
+                    .{ .spawn_interval = 0 },
+                },
+            }) catch unreachable;
+
+            spawn_rules.append(.{
+                .from_time_s = 50,
+                .to_time_s = 120,
                 .bugs = .{
                     .{ .spawn_interval = 0.5 },
-                    .{ .spawn_interval = 0.5 },
-                    .{ .spawn_interval = 0.5 },
+                    .{ .spawn_interval = 2 },
+                    .{ .spawn_interval = 1 },
                 },
             }) catch unreachable;
 
@@ -625,11 +651,21 @@ const Wave = struct {
             // TODO: game design
             spawn_rules.append(.{
                 .from_time_s = 0,
-                .to_time_s = 30,
+                .to_time_s = 40,
                 .bugs = .{
-                    .{ .spawn_interval = 0.5 },
-                    .{ .spawn_interval = 0.5 },
-                    .{ .spawn_interval = 0.5 },
+                    .{ .spawn_interval = 2 },
+                    .{ .spawn_interval = 0 },
+                    .{ .spawn_interval = 0 },
+                },
+            }) catch unreachable;
+
+            spawn_rules.append(.{
+                .from_time_s = 10,
+                .to_time_s = 60,
+                .bugs = .{
+                    .{ .spawn_interval = 0 },
+                    .{ .spawn_interval = 0 },
+                    .{ .spawn_interval = 55 },
                 },
             }) catch unreachable;
 
@@ -1302,17 +1338,18 @@ const ScreenBattle = struct {
     wave: Wave,
     wave_number: u8,
     ram: f32, // health of the player
-    transistors: u32,
+    transistors: u32 = initial_cpu_transistor_cost,
+    cpu_transistor_cost: u32 = initial_cpu_transistor_cost,
     wave_over_timer: f32 = 0,
 
     popup: bool = false,
 
     const max_ram = 100;
-    const cpu_transistor_cost = 100;
+    const initial_cpu_transistor_cost = 50;
     const wave_continue_delay = 2; // seconds
 
     fn init() ScreenBattle {
-        const wave_number: u8 = 1; // MARK
+        const wave_number: u8 = 2; // MARK
         return .{
             .wave_number = wave_number,
             .wave = .init(wave_number),
@@ -1326,7 +1363,6 @@ const ScreenBattle = struct {
                 .zoom = @as(f32, @floatFromInt(screen_height)) / world_height,
             },
             .ram = max_ram,
-            .transistors = cpu_transistor_cost,
         };
     }
 
@@ -1351,7 +1387,8 @@ const ScreenBattle = struct {
         } else if (self.wave_over_timer >= wave_continue_delay) {
             self.wave_over_timer = 0;
             self.wave_number += 1;
-            self.transistors = cpu_transistor_cost;
+            self.cpu_transistor_cost = initial_cpu_transistor_cost;
+            self.transistors = self.cpu_transistor_cost;
             if (self.wave_number > 3) {
                 self.deinit();
                 game.screen_state = .{ .victory = .init() };
@@ -1379,9 +1416,10 @@ const ScreenBattle = struct {
                 self.wave.set(mx, my, .socket);
             }
 
-            if (self.wave.get(mx, my) == .socket and self.transistors >= cpu_transistor_cost) {
+            if (self.wave.get(mx, my) == .socket and self.transistors >= self.cpu_transistor_cost) {
                 self.wave.set(mx, my, .{ .cpu = .{} });
-                self.transistors -= cpu_transistor_cost;
+                self.transistors -= self.cpu_transistor_cost;
+                self.cpu_transistor_cost *= 2;
                 rl.playSound(game.sound_map.get(.cpu_place).?);
             } else if (self.wave.get(mx, my) == .cpu) {
                 var cpu = &self.wave.at(mx, my).?.cpu;
@@ -1589,7 +1627,7 @@ const ScreenBattle = struct {
                 rl.Color.white,
             );
 
-            const cpu_cost = std.fmt.allocPrintZ(a, "= {d}", .{cpu_transistor_cost}) catch unreachable;
+            const cpu_cost = std.fmt.allocPrintZ(a, "= {d}", .{self.cpu_transistor_cost}) catch unreachable;
             rl.drawTextEx(
                 game.font_title,
                 cpu_cost,
