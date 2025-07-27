@@ -3,19 +3,28 @@ const rlz = @import("raylib_zig");
 
 const exe_name = "hackathon";
 
-const targets: []const std.Target.Query = &.{
+const all_targets: []const std.Target.Query = &.{
     .{ .cpu_arch = .aarch64, .os_tag = .macos },
-    .{ .cpu_arch = .aarch64, .os_tag = .linux },
+    // .{ .cpu_arch = .aarch64, .os_tag = .linux },
     .{ .cpu_arch = .x86_64, .os_tag = .linux, .abi = .gnu },
-    .{ .cpu_arch = .x86_64, .os_tag = .linux, .abi = .musl },
+    // .{ .cpu_arch = .x86_64, .os_tag = .linux, .abi = .musl },
     .{ .cpu_arch = .x86_64, .os_tag = .windows },
     //
     // TODO: add WASM support
     //.{ .cpu_arch = .wasm32, .os_tag = .emscripten },
 };
 
+const wasm_targets: []const std.Target.Query = &.{
+    // TODO: add WASM support
+    .{ .cpu_arch = .wasm32, .os_tag = .emscripten },
+};
+
 pub fn build(b: *std.Build) !void {
     const build_all = b.option(bool, "ball", "Build and package");
+    const build_wasm = b.option(bool, "wasm", "Build and package WASM");
+
+    const emcc = rlz.emcc;
+    _ = emcc;
 
     const optimize = b.standardOptimizeOption(.{});
 
@@ -25,7 +34,9 @@ pub fn build(b: *std.Build) !void {
     try buildRun(b, run_step, optimize);
 
     if (build_all orelse false) {
-        try buildPack(b, pack_step, optimize);
+        try buildPack(b, pack_step, optimize, all_targets);
+    } else if (build_wasm orelse false) {
+        try buildPack(b, pack_step, optimize, wasm_targets);
     }
 }
 
@@ -57,7 +68,7 @@ fn buildRun(b: *std.Build, parent: *std.Build.Step, optimize: std.builtin.Optimi
 const pkg_folder = "pkg";
 
 // TODO: fix this function
-fn buildPack(b: *std.Build, parent: *std.Build.Step, optimize: std.builtin.OptimizeMode) !void {
+fn buildPack(b: *std.Build, parent: *std.Build.Step, optimize: std.builtin.OptimizeMode, targets: []const std.Target.Query) !void {
     const rm_pkg = b.addSystemCommand(&.{ "rm", "-rf", pkg_folder });
 
     const mkdir_pkg = b.addSystemCommand(&.{ "mkdir", pkg_folder });
