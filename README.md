@@ -15,7 +15,7 @@ TODO: add wasm build?
 Clone the repository
 
 ```
-git clone https://github.com/The-Memory-Managers/hackathon
+git clone https://github.com/The-Memory-Managers/cpu-vs-ai
 cd hackathon
 ```
 
