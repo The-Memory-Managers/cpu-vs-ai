@@ -22,7 +22,7 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
 
         .platform = rlz.PlatformBackend.glfw,
-        .linux_display_backend = rlz.LinuxDisplayBackend.Both,
+        .linux_display_backend = rlz.LinuxDisplayBackend.X11,
 
         // See https://github.com/Not-Nik/raylib-zig/issues/219
         // We can either have users download both, or maybe try disabling lld?

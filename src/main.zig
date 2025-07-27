@@ -29,7 +29,7 @@ pub fn main() anyerror!void {
     //--------------------------------------------------------------------------------------
 
     rl.setConfigFlags(.{ .window_resizable = false, .window_highdpi = true });
-    rl.initWindow(screen_width, screen_height, "Hackathon");
+    rl.initWindow(screen_width, screen_height, "CPU vs AI");
     defer rl.closeWindow(); // Close window and OpenGL context
 
     rl.initAudioDevice();
@@ -41,6 +41,8 @@ pub fn main() anyerror!void {
     const music = rl.loadMusicStream("assets/sfx/music.wav") catch unreachable;
     rl.setMusicVolume(music, 0.5);
     rl.playMusicStream(music);
+
+    rl.setWindowIcon(rl.loadImage("assets/img/icon.png") catch unreachable);
 
     rl.setTargetFPS(60); // Set our game to run at 60 frames-per-second
     rl.setExitKey(.caps_lock);
