@@ -6,6 +6,8 @@ Don't let the bugs get across the PCIE lanes and corrupt your RAM!
 
 TODO: insert image here
 
+TODO: insert video link here
+
 ## Installation
 
 TODO: add wasm build?
@@ -17,19 +19,29 @@ git clone https://github.com/The-Memory-Managers/hackathon
 cd hackathon
 ```
 
-Depending on your computer, run the following:
-
-- Linux (wayland, x86_64) - `./bin/linux-x86_64-wayland`
-- Linux (x11, x86_64) - `./bin/linux-x86_64-x11`
-- MacOS - `./bin/mac-arm`
-- Windows (win 10/11, x86_64) - `./bin/win-x86_64.exe`
-
-## Build from source
-
-Install zig release version 0.14 run:
+Install zig release version 0.14 and run:
 
 ```
 zig build run
 ```
 
 If you are on NixOS, run `nix develop` and then inside it run `zig build run`
+
+## How to play
+
+Left click to place a CPU where a socket is available.
+
+CPUs get upgraded based on how many bugs they destroyed.
+
+An upgraded CPU will show a popup:
+
+- Left click to upgrade bus width (more damage)
+- Right click to upgrade cache size (further range)
+
+The amount of CPU cores determine how many bugs it can attack in parallel.
+
+### Tips if you struggle beating a level (spoiler)
+
+- Try positioning your CPUs differently, where they can control the most lanes
+- Try experimenting with different bus widths and cache sizes
+- If you still can't beat a level, you can skip it by pressing the "s" key
