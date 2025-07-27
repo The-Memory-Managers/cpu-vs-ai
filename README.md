@@ -1,3 +1,5 @@
+<img src="assets/img/icon.png" width="256" height="256" />
+
 # CPU vs AI
 
 The AI chip on your motherboard lost control! the code it's generating is full of bugs!  
