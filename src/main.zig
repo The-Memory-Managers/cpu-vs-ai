@@ -706,6 +706,7 @@ const Game = struct {
         main: ScreenMainMenu,
         battle: ScreenBattle,
         gameover: ScreenGameOver,
+        victory: ScreenVictory,
     },
 
     fn init() Game {
@@ -776,6 +777,7 @@ const Game = struct {
             .screen_state = .{
                 .main = .init(),
                 // .gameover = .init(),
+                // .victory = .init(),
                 // .battle = .init(),
             },
         };
@@ -807,6 +809,9 @@ const Game = struct {
             .gameover => {
                 self.screen_state.gameover.update(self, dt);
             },
+            .victory => {
+                self.screen_state.victory.update(self, dt);
+            },
         }
     }
 
@@ -828,6 +833,9 @@ const Game = struct {
             },
             .gameover => {
                 self.screen_state.gameover.render(self);
+            },
+            .victory => {
+                self.screen_state.victory.render(self);
             },
         }
     }
@@ -1080,7 +1088,151 @@ const ScreenGameOver = struct {
     }
 };
 
-// TODO: ScreenVictory
+const ScreenVictory = struct {
+    camera: rl.Camera2D,
+    pressed_play_again: bool = false,
+    pressed_menu: bool = false,
+    dt: f32 = -1.0,
+    text: [:0]const u8 = "You win!",
+    size: f32 = 22,
+    spacing: f32 = 1.0,
+    color: rl.Color = rl.Color.green,
+    measurement: rl.Vector2 = .{ .x = 0, .y = 0 },
+    widths: [8]f32 = undefined,
+    height: f32 = 0,
+    speed: f32 = 2.0,
+    animation_offset: f32 = 0.2,
+    animation_size: f32 = 0.3,
+    initiated: bool = false,
+
+    const button_menu_width: f32 = @floatFromInt(cell_size * 7);
+    const button_menu_height: f32 = @floatFromInt(cell_size);
+
+    fn init() ScreenVictory {
+        return .{
+            .camera = .{
+                .target = .{ .x = 128, .y = 128 },
+                .offset = .{
+                    .x = @as(f32, @floatFromInt(screen_width)) / 2,
+                    .y = @as(f32, @floatFromInt(screen_height)) / 2,
+                },
+                .rotation = 0,
+                .zoom = @as(f32, @floatFromInt(screen_height)) / world_height,
+            },
+        };
+    }
+
+    fn update(self: *ScreenVictory, game: *Game, dt: f32) void {
+        if (self.initiated) {
+            self.dt += dt;
+        }
+
+        self.updateCamera();
+
+        // Must be the last thing
+        if (self.pressed_play_again) {
+            game.screen_state = .{ .battle = .init() };
+        } else if (self.pressed_menu) {
+            game.screen_state = .{ .main = .init() };
+        }
+    }
+
+    fn updateCamera(self: *ScreenVictory) void {
+        screen_width = rl.getScreenWidth();
+        screen_height = rl.getScreenHeight();
+
+        self.camera.offset = .{
+            .x = @as(f32, @floatFromInt(screen_width)) / 2,
+            .y = @as(f32, @floatFromInt(screen_height)) / 2,
+        };
+
+        self.camera.target = .{
+            .x = world_width / 2.0,
+            .y = world_height / 2.0,
+        };
+
+        // Take the average between the ratios
+        // This avoids "cheating" by changing the ratio to an extreme value
+        // in order to see more terrain in a certain axis
+        const width_ratio = @as(f32, @floatFromInt(screen_width)) / world_width;
+        const height_ratio = @as(f32, @floatFromInt(screen_height)) / world_height;
+        self.camera.zoom = (width_ratio + height_ratio) / 2;
+    }
+
+    fn render(self: *ScreenVictory, game: *Game) void {
+        rl.beginMode2D(self.camera);
+        defer rl.endMode2D();
+
+        if (!self.initiated) {
+            var i: usize = 0;
+            const len: usize = self.text.len;
+            assert(len == self.widths.len);
+            while (i < len) : (i += 1) {
+                const substring = self.text[i..];
+                const measurement = rl.measureTextEx(game.font_title, substring, self.size, self.spacing);
+                if (i == 0) {
+                    self.height = measurement.y;
+                }
+                self.widths[i] = measurement.x;
+            }
+            self.initiated = true;
+        }
+
+        // total width and height for the game over text
+        const tx = self.widths[0];
+        const ty = self.height;
+
+        // we have widths for the title with the start chopped off.
+        // let's calculate the right side
+        const rx = (world_width + tx) / 2;
+        const ry = (world_height - ty) / 2;
+        var i: usize = 0;
+        const len: usize = self.text.len;
+        while (i < len) {
+            const fi: f32 = @as(f32, @floatFromInt(i));
+            const width = self.widths[i];
+            const x = rx - width;
+            // feel free to find a better way to extract single characters:
+            const char = rl.textFormat("%c", .{self.text[i]});
+            const y = ry - ty * self.animation_size * sin((self.dt + self.animation_offset * fi) * self.speed);
+            rl.drawTextEx(game.font_title, char, .{ .x = x, .y = y }, self.size, self.spacing, self.color);
+            i += 1;
+        }
+
+        self.pressed_menu = labelButton(
+            game,
+            &self.camera,
+            "Back to main menu",
+            rl.Rectangle.init(
+                (world_width - ScreenVictory.button_menu_width) / 2,
+                (world_height - ScreenVictory.button_menu_height) / 2 + cell_size * 1.25,
+                ScreenVictory.button_menu_width,
+                ScreenVictory.button_menu_height,
+            ),
+            .{
+                .font = game.font_title,
+                .font_size = 10,
+                .spacing = 5,
+            },
+        );
+        self.pressed_play_again = labelButton(
+            game,
+            &self.camera,
+            "Play again",
+            rl.Rectangle.init(
+                (world_width - ScreenVictory.button_menu_width) / 2,
+                (world_height - ScreenVictory.button_menu_height) / 2 + cell_size * 2.25,
+                ScreenVictory.button_menu_width,
+                ScreenVictory.button_menu_height,
+            ),
+            .{
+                .font = game.font_normal,
+                .font_size = 10,
+                .spacing = 5,
+            },
+        );
+    }
+};
 
 const ScreenBattle = struct {
     camera: rl.Camera2D,
@@ -1134,8 +1286,7 @@ const ScreenBattle = struct {
             self.wave_number += 1;
             if (self.wave_number > 3) {
                 self.deinit();
-                // TODO: victory screen instead of game over
-                game.screen_state = .{ .gameover = .init() };
+                game.screen_state = .{ .victory = .init() };
             } else {
                 self.wave.deinit();
                 self.wave = .init(self.wave_number);
