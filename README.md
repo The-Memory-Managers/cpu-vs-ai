@@ -1,6 +1,4 @@
-<img src="assets/img/icon.png"
-     width="32" height="32"
-     style="image-rendering: pixelated; image-rendering: crisp-edges;" />
+<img src="assets/img/icon-64.png" width="64" height="64" />
 
 # CPU vs AI
 
