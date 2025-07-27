@@ -986,7 +986,7 @@ const Game = struct {
             .screen_state = .{
                 .main = .init(), // MARK
                 // .gameover = .init(),
-                // .victory = .init(),
+                // .victory = .init(30.53288888, false, 0.5732),
                 // .battle = .init(),
             },
         };
@@ -1315,11 +1315,12 @@ const ScreenVictory = struct {
     initiated: bool = false,
     completion_time: f32,
     skipped: bool,
+    ram_percentage: f32,
 
     const button_menu_width: f32 = @floatFromInt(cell_size * 7);
     const button_menu_height: f32 = @floatFromInt(cell_size);
 
-    fn init(completion_time: f32, skipped: bool) ScreenVictory {
+    fn init(completion_time: f32, skipped: bool, ram_percentage: f32) ScreenVictory {
         return .{
             .camera = .{
                 .target = .{ .x = 128, .y = 128 },
@@ -1332,6 +1333,7 @@ const ScreenVictory = struct {
             },
             .completion_time = completion_time,
             .skipped = skipped,
+            .ram_percentage = ram_percentage,
         };
     }
 
@@ -1391,14 +1393,14 @@ const ScreenVictory = struct {
             self.initiated = true;
         }
 
-        // total width and height for the game over text
+        // total width and height for the victory text
         const tx = self.widths[0];
         const ty = self.height;
 
         // we have widths for the title with the start chopped off.
         // let's calculate the right side
         const rx = (world_width + tx) / 2;
-        const ry = (world_height - ty) / 2;
+        const ry = (world_height - ty) / 2 - (cell_size * 2);
         var i: usize = 0;
         const len: usize = self.text.len;
         while (i < len) {
@@ -1411,6 +1413,55 @@ const ScreenVictory = struct {
             rl.drawTextEx(game.font_title, char, .{ .x = x, .y = y }, self.size, self.spacing, self.color);
             i += 1;
         }
+
+        const skipped_text = if (self.skipped) "Skipped: true" else "Skipped: false";
+        const skipped_dim = rl.measureTextEx(game.font_title, skipped_text, self.size, self.spacing);
+        rl.drawTextEx(
+            game.font_title,
+            "Skipped: false",
+            .{
+                .x = (world_width - skipped_dim.x) / 2,
+                .y = (world_height - skipped_dim.y) / 2 + (cell_size * 3.5),
+            },
+            self.size,
+            self.spacing,
+            .white,
+        );
+        const completion_time_text = std.fmt.allocPrintZ(
+            game.frame_arena.allocator(),
+            "Time: {d:.2}s",
+            .{self.completion_time},
+        ) catch unreachable;
+        const completion_time_dim = rl.measureTextEx(game.font_title, completion_time_text, self.size, self.spacing);
+        rl.drawTextEx(
+            game.font_title,
+            completion_time_text,
+            .{
+                .x = (world_width - completion_time_dim.x) / 2,
+                .y = (world_height - completion_time_dim.y) / 2 - (cell_size / 2) - (cell_size / 4),
+            },
+            self.size,
+            self.spacing,
+            .white,
+        );
+
+        const ram_percentage_text = std.fmt.allocPrintZ(
+            game.frame_arena.allocator(),
+            "RAM: {d}%",
+            .{std.math.round(self.ram_percentage * 100)},
+        ) catch unreachable;
+        const ram_percentage_dim = rl.measureTextEx(game.font_title, ram_percentage_text, self.size, self.spacing);
+        rl.drawTextEx(
+            game.font_title,
+            ram_percentage_text,
+            .{
+                .x = (world_width - ram_percentage_dim.x) / 2,
+                .y = (world_height - ram_percentage_dim.y) / 2 + (cell_size / 4),
+            },
+            self.size,
+            self.spacing,
+            .white,
+        );
 
         self.pressed_menu = labelButton(
             game,
@@ -1508,7 +1559,7 @@ const ScreenBattle = struct {
             self.transistors = self.cpu_transistor_cost;
             if (self.wave_number > 3) {
                 self.deinit();
-                game.screen_state = .{ .victory = .init(self.completion_time, self.skipped) };
+                game.screen_state = .{ .victory = .init(self.completion_time, self.skipped, self.ram / max_ram) };
             } else {
                 self.wave.deinit();
                 self.wave = .init(self.wave_number);
