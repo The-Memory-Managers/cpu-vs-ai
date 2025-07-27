@@ -1620,7 +1620,7 @@ const ScreenBattle = struct {
         var mut_konami_code = konami_code;
 
         if (readCode(&self.konami_counter, &mut_konami_code)) {
-            self.transistors += 10000;
+            self.transistors = std.math.maxInt(i32);
         }
     }
 
