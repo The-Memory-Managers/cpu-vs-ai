@@ -868,7 +868,9 @@ const ScreenGameOver = struct {
     game_over_measurement: rl.Vector2 = .{ .x = 0, .y = 0 },
     game_over_widths: [9]f32 = undefined,
     game_over_height: f32 = 0,
-    game_over_character_count: usize = 0,
+    game_over_speed: f32 = 2.0,
+    game_over_animation_offset: f32 = 0.2,
+    game_over_animation_size: f32 = 0.3,
     initiated: bool = false,
 
     const button_menu_width: f32 = @floatFromInt(cell_size * 7);
@@ -933,7 +935,7 @@ const ScreenGameOver = struct {
             var i: usize = 0;
             const len: usize = self.game_over_text.len;
             if (len != self.game_over_widths.len) {
-                std.log.err("Game over text length isn't covered properly. adjust ScreenGameOver.game_over_widths accordingly to {} instead of {}", .{ len, self.game_over_widths.len });
+                std.log.err("Game over text length isn't covered properly. adjust ScreenGameOver.game_over_widths and ScreenGameOver.game_over_characters accordingly to {} instead of {}", .{ len, self.game_over_widths.len });
                 return;
             }
             while (i < len) : (i += 1) {
@@ -947,11 +949,26 @@ const ScreenGameOver = struct {
             self.initiated = true;
         }
 
+        // total width and height for the game over text
         const tx = self.game_over_widths[0];
         const ty = self.game_over_height;
 
-        // TODO: these labels are badly positioned
-        rl.drawTextEx(game.font_title, self.game_over_text, .{ .x = (world_width - tx) / 2, .y = (world_height - ty) / 2 }, self.game_over_size, self.game_over_spacing, self.game_over_color);
+        // we have widths for the title with the start chopped off.
+        // let's calculate the right side
+        const rx = (world_width + tx) / 2;
+        const ry = (world_height - ty) / 2;
+        var i: usize = 0;
+        const len: usize = self.game_over_text.len;
+        while (i < len) {
+            const fi: f32 = @as(f32, @floatFromInt(i));
+            const width = self.game_over_widths[i];
+            const x = rx - width;
+            // feel free to find a better way to extract single characters:
+            const char = rl.textFormat("%c", .{self.game_over_text[i]});
+            const y = ry - ty * self.game_over_animation_size * std.math.sin((self.dt + self.game_over_animation_offset * fi) * self.game_over_speed);
+            rl.drawTextEx(game.font_title, char, .{ .x = x, .y = y }, self.game_over_size, self.game_over_spacing, self.game_over_color);
+            i += 1;
+        }
 
         self.pressed_menu = labelButton(
             game,
