@@ -462,6 +462,8 @@ const Wave = struct {
                     .{ .spawn_interval = 0.5 },
                 },
             }) catch unreachable;
+
+            // TODO: game design
             // spawn_rules.append(.{
             //     .from_time_s = 0,
             //     .to_time_s = 10,
@@ -492,6 +494,17 @@ const Wave = struct {
             //     },
             // }) catch unreachable;
         } else if (wave_number == 2) {
+            // TODO: game design
+            spawn_rules.append(.{
+                .from_time_s = 0,
+                .to_time_s = 30,
+                .bugs = .{
+                    .{ .spawn_interval = 0.5 },
+                    .{ .spawn_interval = 0.5 },
+                    .{ .spawn_interval = 0.5 },
+                },
+            }) catch unreachable;
+
             map = .{
                 .{ .none, .none, .none, .none, .none, .none, .none, .none, .none, .none, .none, .none, .none, .none, .none, .none },
                 .{ .none, .none, .none, .socket, .socket, .socket, .socket, .socket, .socket, .socket, .none, .none, .none, .none, .none, .none },
@@ -504,6 +517,17 @@ const Wave = struct {
                 .{ .none, .none, .none, .none, .none, .none, .none, .none, .none, .none, .none, .none, .none, .none, .none, .none },
             };
         } else if (wave_number == 3) {
+            // TODO: game design
+            spawn_rules.append(.{
+                .from_time_s = 0,
+                .to_time_s = 30,
+                .bugs = .{
+                    .{ .spawn_interval = 0.5 },
+                    .{ .spawn_interval = 0.5 },
+                    .{ .spawn_interval = 0.5 },
+                },
+            }) catch unreachable;
+
             map = .{
                 .{ .none, .none, .none, .none, .none, .none, .none, .none, .none, .none, .none, .none, .none, .none, .none, .none },
                 .{ .none, .none, .none, .none, .none, .none, .none, .none, .none, .none, .none, .none, .none, .none, .none, .none },
@@ -532,18 +556,21 @@ const Wave = struct {
         return wave;
     }
 
-    fn update(self: *Wave, delta_time: f32, ram: *f32, game: *Game) void {
+    fn update(self: *Wave, delta_time: f32, ram: *f32, game: *Game) bool {
         // TODO: quite a bit of logic here
         self.time_since_start += delta_time;
 
         const half_cell = cell_size / 2;
         const ai_position = rl.Vector2.init(half_cell, 4 * cell_size + half_cell);
 
+        var wave_over = true;
+
         // TODO: post hackathon, optimize this
         for (self.spawn_rules.items) |*rules| {
             if (rules.from_time_s > self.time_since_start or rules.to_time_s < self.time_since_start) {
                 continue;
             }
+            wave_over = false;
             for (0..rules.bugs.len) |i| {
                 if (rules.bugs[i].spawn_interval == 0) {
                     continue;
@@ -561,8 +588,11 @@ const Wave = struct {
             if (bug.dead) {
                 continue;
             }
+            wave_over = false;
             bug.update(delta_time, self, ram, game);
         }
+
+        return wave_over;
     }
 
     fn deinit(self: *Wave) void {
@@ -1009,6 +1039,7 @@ const ScreenGameOver = struct {
 const ScreenBattle = struct {
     camera: rl.Camera2D,
     wave: Wave,
+    wave_number: u8,
     ram: f32, // health of the player
     transistors: u32 = 0,
 
@@ -1019,8 +1050,10 @@ const ScreenBattle = struct {
     const transistors_per_bug = 10;
 
     fn init() ScreenBattle {
+        const wave_number: u8 = 1;
         return .{
-            .wave = .init(1),
+            .wave_number = wave_number,
+            .wave = .init(wave_number),
             .camera = .{
                 .target = .{ .x = 128, .y = 128 },
                 .offset = .{
@@ -1042,14 +1075,25 @@ const ScreenBattle = struct {
     fn update(self: *ScreenBattle, game: *Game, dt: f32) void {
         self.handlePlayerInput(game, dt);
 
-        self.wave.update(dt, &self.ram, game);
         self.updateCpuAndBugs(game, dt);
+        const wave_over = self.wave.update(dt, &self.ram, game);
 
         self.updateCamera();
 
         if (self.ram <= 0) {
             self.deinit();
             game.screen_state = .{ .gameover = .init() };
+        } else if (wave_over) {
+            // TODO: Make the user press "continue" rather than immediately starting the next one
+            self.wave_number += 1;
+            if (self.wave_number > 3) {
+                self.deinit();
+                // TODO: victory screen instead of game over
+                game.screen_state = .{ .gameover = .init() };
+            } else {
+                self.wave.deinit();
+                self.wave = .init(self.wave_number);
+            }
         }
     }
 
