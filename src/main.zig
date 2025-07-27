@@ -14,7 +14,7 @@ const world_height = cells_height * cell_size;
 const bg_color = rl.Color.init(0x20, 0x2e, 0x37, 0xFF);
 const highlight_color = rl.Color.init(0x57, 0x72, 0x77, 0xFF);
 
-const debug = true;
+const debug = false;
 const edit = debug and false;
 
 var screen_width: i32 = 1280;
@@ -304,19 +304,27 @@ const Bug = struct {
         }
     }
 
+    fn transistors(bug: Bug) u32 {
+        return switch (bug.kind) {
+            .nullptr_deref => return 10,
+            .stack_overflow => return 20,
+            .infinite_loop => return 5,
+        };
+    }
+
     pub fn maxHealth(kind: BugKind) f32 {
         return switch (kind) {
-            .nullptr_deref => return 3,
-            .stack_overflow => return 100,
-            .infinite_loop => return 1,
+            .nullptr_deref => return 2,
+            .stack_overflow => return 10,
+            .infinite_loop => return 0.5,
         };
     }
 
     fn speed(kind: BugKind) f32 {
         return switch (kind) {
-            .nullptr_deref => return 0.3,
+            .nullptr_deref => return 0.5,
             .stack_overflow => return 0.1,
-            .infinite_loop => return 1,
+            .infinite_loop => return 4,
         };
     }
 
@@ -343,16 +351,17 @@ const Bug = struct {
         return switch (kind) {
             .nullptr_deref => return 2,
             .stack_overflow => return 2,
-            .infinite_loop => return 7,
+            .infinite_loop => return 6,
         };
     }
 
     fn animationSwitchThreshold(kind: BugKind) f32 {
-        return switch (kind) {
-            .nullptr_deref => return 0.3,
-            .stack_overflow => return 0.3,
-            .infinite_loop => return 0.05,
-        };
+        return (1 / speed(kind)) / (animationCount(kind) * 3);
+        // return switch (kind) {
+        //     .nullptr_deref => return 0.3,
+        //     .stack_overflow => return 0.3,
+        //     .infinite_loop => return 0.05,
+        // };
     }
 };
 
@@ -403,16 +412,16 @@ const Cpu = struct {
     fn level(self: Cpu) u32 {
         return switch (self.debugs) {
             // TODO: only for debug (change this once ready for play testing)
-            0...2 => 1,
-            3...4 => 2,
-            5...6 => 3,
-            7...8 => 4,
-            else => 5,
-            // 0...9 => 1,
-            // 10...24 => 2,
-            // 25...49 => 3,
-            // 50...100 => 4,
+            // 0...2 => 1,
+            // 3...4 => 2,
+            // 5...6 => 3,
+            // 7...8 => 4,
             // else => 5,
+            0...9 => 1,
+            10...24 => 2,
+            25...49 => 3,
+            50...100 => 4,
+            else => 5,
         };
     }
 
@@ -496,49 +505,99 @@ const Wave = struct {
                 .{ .none, .none, .none, .none, .none, .none, .none, .none, .none, .none, .none, .none, .none, .none, .none, .none },
             };
 
+            // spawn_rules.append(.{
+            //     .from_time_s = 0,
+            //     .to_time_s = 1.1,
+            //     .bugs = .{
+            //         // .{ .spawn_interval = 0.5 },
+            //         // .{ .spawn_interval = 0.5 },
+            //         // .{ .spawn_interval = 0.5 },
+            //         .{ .spawn_interval = 0 },
+            //         .{ .spawn_interval = 0 },
+            //         .{ .spawn_interval = 0 },
+            //     },
+            // }) catch unreachable;
+
+            // TODO: game design MARK
             spawn_rules.append(.{
                 .from_time_s = 0,
-                .to_time_s = 1.1,
+                .to_time_s = 4,
                 .bugs = .{
-                    // .{ .spawn_interval = 0.5 },
-                    // .{ .spawn_interval = 0.5 },
-                    // .{ .spawn_interval = 0.5 },
-                    .{ .spawn_interval = 0 },
+                    .{ .spawn_interval = 3 },
                     .{ .spawn_interval = 0 },
                     .{ .spawn_interval = 0 },
                 },
             }) catch unreachable;
 
-            // TODO: game design
-            // spawn_rules.append(.{
-            //     .from_time_s = 0,
-            //     .to_time_s = 10,
-            //     .bugs = .{
-            //         .{ .spawn_interval = 1 },
-            //         .{ .spawn_interval = 0 },
-            //         .{ .spawn_interval = 0 },
-            //     },
-            // }) catch unreachable;
-            //
-            // spawn_rules.append(.{
-            //     .from_time_s = 10,
-            //     .to_time_s = 20,
-            //     .bugs = .{
-            //         .{ .spawn_interval = 2 },
-            //         .{ .spawn_interval = 0.5 },
-            //         .{ .spawn_interval = 0 },
-            //     },
-            // }) catch unreachable;
-            //
-            // spawn_rules.append(.{
-            //     .from_time_s = 20,
-            //     .to_time_s = 30,
-            //     .bugs = .{
-            //         .{ .spawn_interval = 5 },
-            //         .{ .spawn_interval = 1 },
-            //         .{ .spawn_interval = 0.5 },
-            //     },
-            // }) catch unreachable;
+            spawn_rules.append(.{
+                .from_time_s = 7,
+                .to_time_s = 20,
+                .bugs = .{
+                    .{ .spawn_interval = 2.5 },
+                    .{ .spawn_interval = 0 },
+                    .{ .spawn_interval = 0 },
+                },
+            }) catch unreachable;
+
+            spawn_rules.append(.{
+                .from_time_s = 24,
+                .to_time_s = 32,
+                .bugs = .{
+                    .{ .spawn_interval = 2 },
+                    .{ .spawn_interval = 0 },
+                    .{ .spawn_interval = 0 },
+                },
+            }) catch unreachable;
+
+            spawn_rules.append(.{
+                .from_time_s = 35,
+                .to_time_s = 36.1,
+                .bugs = .{
+                    .{ .spawn_interval = 0 },
+                    .{ .spawn_interval = 0 },
+                    .{ .spawn_interval = 1 },
+                },
+            }) catch unreachable;
+
+            spawn_rules.append(.{
+                .from_time_s = 40,
+                .to_time_s = 65,
+                .bugs = .{
+                    .{ .spawn_interval = 1.2 },
+                    .{ .spawn_interval = 0 },
+                    .{ .spawn_interval = 0 },
+                },
+            }) catch unreachable;
+
+            spawn_rules.append(.{
+                .from_time_s = 60,
+                .to_time_s = 60.15,
+                .bugs = .{
+                    .{ .spawn_interval = 0 },
+                    .{ .spawn_interval = 0.1 },
+                    .{ .spawn_interval = 0 },
+                },
+            }) catch unreachable;
+
+            spawn_rules.append(.{
+                .from_time_s = 60,
+                .to_time_s = 71,
+                .bugs = .{
+                    .{ .spawn_interval = 0 },
+                    .{ .spawn_interval = 0 },
+                    .{ .spawn_interval = 2 },
+                },
+            }) catch unreachable;
+
+            spawn_rules.append(.{
+                .from_time_s = 65,
+                .to_time_s = 75,
+                .bugs = .{
+                    .{ .spawn_interval = 0 },
+                    .{ .spawn_interval = 4 },
+                    .{ .spawn_interval = 0 },
+                },
+            }) catch unreachable;
         } else if (wave_number == 2) {
             // TODO: game design
             spawn_rules.append(.{
@@ -582,7 +641,7 @@ const Wave = struct {
                 .{ .ai, .lane, .lane, .lane, .lane, .socket, .socket, .socket, .socket, .socket, .socket, .socket, .socket, .lane, .lane, .ram },
                 .{ .none, .socket, .socket, .socket, .lane, .socket, .socket, .lane, .lane, .lane, .lane, .lane, .socket, .lane, .socket, .none },
                 .{ .none, .none, .none, .socket, .lane, .lane, .lane, .lane, .socket, .socket, .socket, .lane, .lane, .lane, .socket, .none },
-                .{ .none, .none, .none, .socket, .socket, .socket, .socket, .socket, .socket, .socket, .socket, .socket, .socket, .socket, .socket, .none },
+                .{ .none, .none, .none, .socket, .socket, .socket, .socket, .socket, .socket, .none, .socket, .socket, .socket, .socket, .socket, .none },
                 .{ .none, .none, .none, .none, .none, .none, .none, .none, .none, .none, .none, .none, .none, .none, .none, .none },
             };
         } else {
@@ -613,10 +672,14 @@ const Wave = struct {
 
         // TODO: post hackathon, optimize this
         for (self.spawn_rules.items) |*rules| {
-            if (rules.from_time_s > self.time_since_start or rules.to_time_s < self.time_since_start) {
+            if (rules.to_time_s < self.time_since_start) {
                 continue;
             }
             wave_over = false;
+            if (rules.from_time_s > self.time_since_start) {
+                continue;
+            }
+
             for (0..rules.bugs.len) |i| {
                 if (rules.bugs[i].spawn_interval == 0) {
                     continue;
@@ -775,10 +838,10 @@ const Game = struct {
             .font_title = font_title,
             .font_normal = font_normal,
             .screen_state = .{
-                .main = .init(),
+                // .main = .init(), // MARK
                 // .gameover = .init(),
                 // .victory = .init(),
-                // .battle = .init(),
+                .battle = .init(),
             },
         };
     }
@@ -1239,16 +1302,17 @@ const ScreenBattle = struct {
     wave: Wave,
     wave_number: u8,
     ram: f32, // health of the player
-    transistors: u32 = 0,
+    transistors: u32,
+    wave_over_timer: f32 = 0,
 
     popup: bool = false,
 
     const max_ram = 100;
     const cpu_transistor_cost = 100;
-    const transistors_per_bug = 10;
+    const wave_continue_delay = 2; // seconds
 
     fn init() ScreenBattle {
-        const wave_number: u8 = 1;
+        const wave_number: u8 = 1; // MARK
         return .{
             .wave_number = wave_number,
             .wave = .init(wave_number),
@@ -1262,7 +1326,7 @@ const ScreenBattle = struct {
                 .zoom = @as(f32, @floatFromInt(screen_height)) / world_height,
             },
             .ram = max_ram,
-            .transistors = 100,
+            .transistors = cpu_transistor_cost,
         };
     }
 
@@ -1275,15 +1339,19 @@ const ScreenBattle = struct {
 
         self.updateCpuAndBugs(game, dt);
         const wave_over = self.wave.update(dt, &self.ram, game);
+        if (wave_over) {
+            self.wave_over_timer += dt;
+        }
 
         self.updateCamera();
 
         if (self.ram <= 0) {
             self.deinit();
             game.screen_state = .{ .gameover = .init() };
-        } else if (wave_over) {
-            // TODO: Make the user press "continue" rather than immediately starting the next one
+        } else if (self.wave_over_timer >= wave_continue_delay) {
+            self.wave_over_timer = 0;
             self.wave_number += 1;
+            self.transistors = cpu_transistor_cost;
             if (self.wave_number > 3) {
                 self.deinit();
                 game.screen_state = .{ .victory = .init() };
@@ -1377,10 +1445,7 @@ const ScreenBattle = struct {
                             if (bug.damage(cpu.damage() * dt)) {
                                 cpu.debugs += 1;
                                 rl.playSound(game.sound_map.get(.bug_death).?);
-                            }
-
-                            if (bug.dead) {
-                                self.transistors += transistors_per_bug;
+                                self.transistors += bug.transistors();
                             }
 
                             count += 1;
