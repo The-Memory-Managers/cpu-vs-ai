@@ -58,3 +58,6 @@ The amount of CPU cores determine how many bugs it can attack in parallel.
 
 - **Audio (assets/sfx/\***)  
   Sound effects and music are public domain, sourced from [https://freesound.org](https://freesound.org).
+
+- **Fonts (assets/font/\***)  
+  Fonts are sourced from [https://www.nerdfonts.com](https://www.nerdfonts.com).
