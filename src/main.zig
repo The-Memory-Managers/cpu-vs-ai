@@ -897,7 +897,7 @@ const ScreenGameOver = struct {
 
         self.updateCamera();
 
-        // Must come after updateCamera
+        // Must be the last thing
         if (self.pressed_retry) {
             game.screen_state = .{ .battle = .init() };
         } else if (self.pressed_menu) {
