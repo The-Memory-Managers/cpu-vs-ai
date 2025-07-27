@@ -111,6 +111,7 @@ fn textureButtonScaled(camera: *const rl.Camera2D, texture: rl.Texture2D, pos: r
 }
 
 fn labelButton(
+    game: *Game,
     camera: *const rl.Camera2D,
     text: [:0]const u8,
     rect: rl.Rectangle,
@@ -119,18 +120,57 @@ fn labelButton(
         font_size: f32,
         spacing: f32,
         text_color: rl.Color = rl.Color.white,
-        bkgd_color: rl.Color = rl.Color.gray,
     },
 ) bool {
     const msp = getMousePos(camera);
-
-    rl.drawRectangleRec(rect, opt.bkgd_color);
-
-    rl.drawTextEx(opt.font, text, rl.Vector2.init(rect.x, rect.y), opt.font_size, opt.spacing, opt.text_color);
+    const texture = game.texture_map.get(.button).?;
 
     const ms_rect = rl.Rectangle.init(msp.x, msp.y, 1, 1);
+    const hovered = rect.checkCollision(ms_rect);
+    const mouse_down = rl.isMouseButtonDown(.left);
+    const clicked = hovered and rl.isMouseButtonReleased(.left);
+    const offset: f32 = if (mouse_down) 2 else if (hovered) 1 else 0;
 
-    return rect.checkCollision(ms_rect) and rl.isMouseButtonPressed(.left);
+    assert(rect.width >= cell_size * 2); // Button needs at least 2 cells!
+    assert(@mod(rect.width, cell_size) == 0); // Needs to be a multiple of cell size
+    assert(rect.height == cell_size); // Needs to be a single row
+
+    rl.drawTexturePro(
+        texture,
+        .{ .x = cell_size * 3 * offset, .y = 0, .width = cell_size, .height = cell_size },
+        .{ .x = rect.x, .y = rect.y, .width = cell_size, .height = rect.height },
+        rl.Vector2.zero(),
+        0,
+        rl.Color.white,
+    );
+    rl.drawTexturePro(
+        texture,
+        .{ .x = cell_size * 3 * offset + cell_size, .y = 0, .width = cell_size, .height = cell_size },
+        .{ .x = rect.x + cell_size, .y = rect.y, .width = rect.width - cell_size, .height = rect.height },
+        rl.Vector2.zero(),
+        0,
+        rl.Color.white,
+    );
+    rl.drawTexturePro(
+        texture,
+        .{ .x = cell_size * 3 * offset + (cell_size * 2), .y = 0, .width = cell_size, .height = cell_size },
+        .{ .x = rect.x + rect.width - cell_size, .y = rect.y, .width = cell_size, .height = rect.height },
+        rl.Vector2.zero(),
+        0,
+        rl.Color.white,
+    );
+
+    const text_vec = rl.measureTextEx(opt.font, text, opt.font_size, opt.spacing);
+    rl.drawTextEx(
+        opt.font,
+        text,
+        rl.Vector2.init(rect.x + ((rect.width - text_vec.x) / 2), rect.y + ((rect.height - text_vec.y) / 2)),
+        opt.font_size,
+        opt.spacing,
+        opt.text_color,
+    );
+
+    return clicked;
 }
 
 const BugKind = enum(u8) {
@@ -581,6 +621,7 @@ const TextureKind = enum {
     transistor,
     cpu_pins,
     upgrade_popup,
+    button,
 };
 
 const SoundKind = enum {
@@ -627,6 +668,7 @@ const Game = struct {
         const cpu_pins = rl.loadTexture("assets/img/cpu_pins.png") catch unreachable;
         const cpu = rl.loadTexture("assets/img/cpu.png") catch unreachable;
         const upgrade_popup = rl.loadTexture("assets/img/upgrade-popup.png") catch unreachable;
+        const button = rl.loadTexture("assets/img/button.png") catch unreachable;
         texture_map.put(.cpus_vs_bugs, cpus_vs_bugs) catch unreachable;
         texture_map.put(.power_button, power_button) catch unreachable;
         texture_map.put(.socket, socket) catch unreachable;
@@ -640,6 +682,7 @@ const Game = struct {
         texture_map.put(.cpu_pins, cpu_pins) catch unreachable;
         texture_map.put(.cpu, cpu) catch unreachable;
         texture_map.put(.upgrade_popup, upgrade_popup) catch unreachable;
+        texture_map.put(.button, button) catch unreachable;
 
         const bug_death = rl.loadSound("assets/sfx/bug-death.wav") catch unreachable;
         rl.setSoundVolume(bug_death, 0.3);
@@ -829,7 +872,7 @@ const ScreenGameOver = struct {
     pressed_retry: bool = false,
     pressed_menu: bool = false,
 
-    const button_menu_width: f32 = @floatFromInt(cell_size * 3);
+    const button_menu_width: f32 = @floatFromInt(cell_size * 7);
     const button_menu_height: f32 = @floatFromInt(cell_size);
 
     fn init() ScreenGameOver {
@@ -893,6 +936,7 @@ const ScreenGameOver = struct {
         rl.drawTextEx(game.font_title, "Game Over", .{ .x = (world_width - td.x) / 2, .y = (world_height - td.y) / 2 }, 22, 1.0, rl.Color.red);
 
         self.pressed_menu = labelButton(
+            game,
             &self.camera,
             "Back to main menu",
             rl.Rectangle.init(
