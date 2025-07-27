@@ -860,6 +860,13 @@ const ScreenGameOver = struct {
     camera: rl.Camera2D,
     pressed_retry: bool = false,
     pressed_menu: bool = false,
+    dt: f32 = -1.0,
+    game_over_text: [:0]const u8 = "Game Over",
+    game_over_size: f32 = 22,
+    game_over_spacing: f32 = 1.0,
+    game_over_color: rl.Color = rl.Color.red,
+    game_over_measurement: rl.Vector2 = .{ .x = 0, .y = 0 },
+    initiated: bool = false,
 
     const button_menu_width: f32 = @floatFromInt(cell_size * 7);
     const button_menu_height: f32 = @floatFromInt(cell_size);
@@ -879,7 +886,10 @@ const ScreenGameOver = struct {
     }
 
     fn update(self: *ScreenGameOver, game: *Game, dt: f32) void {
-        _ = dt;
+        if (self.initiated) {
+            self.dt += dt;
+        }
+
         if (self.pressed_retry) {
             game.screen_state = .{ .battle = .init() };
         }
@@ -916,13 +926,17 @@ const ScreenGameOver = struct {
         rl.beginMode2D(self.camera);
         defer rl.endMode2D();
 
+        if (!self.initiated) {
+            self.game_over_measurement = rl.measureTextEx(game.font_title, self.game_over_text, self.game_over_size, self.game_over_spacing);
+            self.initiated = true;
+        }
+
+        const td = self.game_over_measurement;
+
         // TODO: these labels are badly positioned
 
-        // get text dimensions for "Game Over" at size 22
-        // imagined func: const text_dimensions = rl.getTextSizeEx(game.font_title, "Game Over", 22);
-        const td = rl.measureTextEx(game.font_title, "Game Over", 22, 1.0);
         std.log.info("Text dimensions: x={}, y={}, world_width={}, world_height={}", .{ td.x, td.y, world_width, world_height });
-        rl.drawTextEx(game.font_title, "Game Over", .{ .x = (world_width - td.x) / 2, .y = (world_height - td.y) / 2 }, 22, 1.0, rl.Color.red);
+        rl.drawTextEx(game.font_title, self.game_over_text, .{ .x = (world_width - td.x) / 2, .y = (world_height - td.y) / 2 }, self.game_over_size, self.game_over_spacing, self.game_over_color);
 
         self.pressed_menu = labelButton(
             game,
