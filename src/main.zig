@@ -659,21 +659,91 @@ const Wave = struct {
         } else if (wave_number == 3) {
             spawn_rules.append(.{
                 .from_time_s = 0,
+                .to_time_s = 3,
+                .bugs = .{
+                    .{ .spawn_interval = 0 },
+                    .{ .spawn_interval = 0 },
+                    .{ .spawn_interval = 0.9 },
+                },
+            }) catch unreachable;
+
+            spawn_rules.append(.{
+                .from_time_s = 3,
                 .to_time_s = 40,
                 .bugs = .{
-                    .{ .spawn_interval = 2 },
+                    .{ .spawn_interval = 1.8 },
                     .{ .spawn_interval = 0 },
                     .{ .spawn_interval = 0 },
                 },
             }) catch unreachable;
 
             spawn_rules.append(.{
-                .from_time_s = 10,
-                .to_time_s = 60,
+                .from_time_s = 30,
+                .to_time_s = 43,
                 .bugs = .{
                     .{ .spawn_interval = 0 },
                     .{ .spawn_interval = 0 },
-                    .{ .spawn_interval = 55 },
+                    .{ .spawn_interval = 3 },
+                },
+            }) catch unreachable;
+
+            spawn_rules.append(.{
+                .from_time_s = 20,
+                .to_time_s = 40,
+                .bugs = .{
+                    .{ .spawn_interval = 0 },
+                    .{ .spawn_interval = 0 },
+                    .{ .spawn_interval = 5 },
+                },
+            }) catch unreachable;
+
+            spawn_rules.append(.{
+                .from_time_s = 40,
+                .to_time_s = 41,
+                .bugs = .{
+                    .{ .spawn_interval = 0 },
+                    .{ .spawn_interval = 0 },
+                    .{ .spawn_interval = 0.03 },
+                },
+            }) catch unreachable;
+
+            spawn_rules.append(.{
+                .from_time_s = 40,
+                .to_time_s = 100,
+                .bugs = .{
+                    .{ .spawn_interval = 0.5 },
+                    .{ .spawn_interval = 1 },
+                    .{ .spawn_interval = 0 },
+                },
+            }) catch unreachable;
+
+            spawn_rules.append(.{
+                .from_time_s = 70,
+                .to_time_s = 71,
+                .bugs = .{
+                    .{ .spawn_interval = 0 },
+                    .{ .spawn_interval = 0 },
+                    .{ .spawn_interval = 0.01 },
+                },
+            }) catch unreachable;
+
+            spawn_rules.append(.{
+                .from_time_s = 80,
+                .to_time_s = 82,
+                .bugs = .{
+                    .{ .spawn_interval = 0.1 },
+                    .{ .spawn_interval = 0 },
+                    .{ .spawn_interval = 0 },
+                },
+            }) catch unreachable;
+
+            spawn_rules.append(.{
+                .from_time_s = 87,
+                .to_time_s = 88,
+                .bugs = .{
+                    .{ .spawn_interval = 0 },
+                    .{ .spawn_interval = 0.1 },
+                    .{ .spawn_interval = 0 },
                 },
             }) catch unreachable;
 
