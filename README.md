@@ -1,4 +1,4 @@
-<img src="assets/img/cpu-vs-ai-banner.png" />
+<img src="assets/img/cpu-vs-ai-banner.png" height="128" width="640" />
 
 The AI chip on your motherboard lost control! the code it's generating is full of bugs!  
 Place and upgrade your CPUs to destroy these bugs!  
