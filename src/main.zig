@@ -64,50 +64,29 @@ fn getMousePos(camera: *const rl.Camera2D) rl.Vector2 {
     };
 }
 
-fn textureButton(camera: *const rl.Camera2D, texture: rl.Texture2D, rect: rl.Rectangle, source: ?rl.Rectangle) bool {
+fn textureButtonScaled(game: *Game, camera: *const rl.Camera2D, texture: rl.Texture2D, pos: rl.Vector2, rotation: f32, scale: f32) bool {
     const msp = getMousePos(camera);
 
-    rl.drawTextureRec(
-        texture,
-        source orelse .{
-            .x = 0,
-            .y = 0,
-            .width = rect.width,
-            .height = rect.height,
-        },
-        .{
-            .x = rect.x,
-            .y = rect.y,
-        },
-        rl.Color.white,
-    );
-
+    const rect = rl.Rectangle.init(pos.x, pos.y, cell_size * scale, cell_size * scale);
     const ms_rect = rl.Rectangle.init(msp.x, msp.y, 1, 1);
+    const hovered = rect.checkCollision(ms_rect);
+    const clicked = hovered and rl.isMouseButtonPressed(.left);
+    const offset: f32 = if (hovered) 1 else 0;
 
-    return rect.checkCollision(ms_rect) and rl.isMouseButtonPressed(.left);
-}
-
-fn textureButtonScaled(camera: *const rl.Camera2D, texture: rl.Texture2D, pos: rl.Vector2, rotation: f32, scale: f32) bool {
-    const msp = getMousePos(camera);
-
-    rl.drawTextureEx(
+    rl.drawTexturePro(
         texture,
-        pos,
+        .{ .x = offset * cell_size, .y = 0, .width = cell_size, .height = cell_size },
+        rect,
+        rl.Vector2.zero(),
         rotation,
-        scale,
         rl.Color.white,
     );
 
-    const rect: rl.Rectangle = .{
-        .x = pos.x,
-        .y = pos.y,
-        .width = scale,
-        .height = scale,
-    };
+    if (clicked) {
+        rl.playSound(game.sound_map.get(.button_click).?);
+    }
 
-    const ms_rect = rl.Rectangle.init(msp.x, msp.y, 1, 1);
-
-    return rect.checkCollision(ms_rect) and rl.isMouseButtonPressed(.left);
+    return clicked;
 }
 
 fn labelButton(
@@ -169,6 +148,10 @@ fn labelButton(
         opt.spacing,
         opt.text_color,
     );
+
+    if (mouse_down) {
+        rl.playSound(game.sound_map.get(.button_click).?);
+    }
 
     return clicked;
 }
@@ -630,6 +613,7 @@ const SoundKind = enum {
     ram_destroyed,
     cpu_place,
     cpu_upgrade,
+    button_click,
 };
 
 const Game = struct {
@@ -694,11 +678,14 @@ const Game = struct {
         rl.setSoundVolume(cpu_place, 0.8);
         const cpu_upgrade = rl.loadSound("assets/sfx/cpu-upgrade.wav") catch unreachable;
         rl.setSoundVolume(cpu_upgrade, 0.8);
+        const button_click = rl.loadSound("assets/sfx/button-click.mp3") catch unreachable;
+        rl.setSoundVolume(button_click, 0.5);
         sound_map.put(.bug_death, bug_death) catch unreachable;
         sound_map.put(.bug_attack, bug_attack) catch unreachable;
         sound_map.put(.ram_destroyed, ram_destroyed) catch unreachable;
         sound_map.put(.cpu_place, cpu_place) catch unreachable;
         sound_map.put(.cpu_upgrade, cpu_upgrade) catch unreachable;
+        sound_map.put(.button_click, button_click) catch unreachable;
 
         const font_title = rl.loadFontEx("assets/font/DepartureMonoNerdFontMono-Regular.otf", 80, null) catch unreachable;
         const font_normal = rl.loadFontEx("assets/font/GohuFont14NerdFontMono-Regular.ttf", 80, null) catch unreachable;
@@ -774,7 +761,8 @@ const ScreenMainMenu = struct {
     camera: rl.Camera2D,
     pressed_start: bool = false,
 
-    const start_button_size: f32 = @floatFromInt(cell_size * 2);
+    const start_button_scaling = 5;
+    const start_button_size: f32 = @floatFromInt(cell_size * start_button_scaling);
     const title_size: f32 = @floatFromInt(cell_size * 5);
 
     fn init() ScreenMainMenu {
@@ -833,14 +821,15 @@ const ScreenMainMenu = struct {
         // - Nuclear
 
         self.pressed_start = textureButtonScaled(
+            game,
             &self.camera,
             game.texture_map.get(.power_button).?,
             rl.Vector2.init(
                 (world_width - ScreenMainMenu.start_button_size) / 2,
                 (world_height - ScreenMainMenu.start_button_size) / 2,
             ),
-            20,
-            ScreenMainMenu.start_button_size,
+            0,
+            ScreenMainMenu.start_button_scaling,
         );
     }
 
