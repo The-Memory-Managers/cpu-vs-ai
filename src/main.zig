@@ -201,64 +201,80 @@ const Bug = struct {
 
         const prev_grid_x: usize = @intFromFloat(self.previous.x / cell_size);
         const prev_grid_y: usize = @intFromFloat(self.previous.y / cell_size);
+        const grid_x: usize = @intFromFloat(self.position.x / cell_size);
+        const grid_y: usize = @intFromFloat(self.position.y / cell_size);
         const target_grid_x: usize = @intFromFloat(self.target.x / cell_size);
         const target_grid_y: usize = @intFromFloat(self.target.y / cell_size);
 
-        const lane_left = wave.get(target_grid_x - 1, target_grid_y).isLaneConnected();
-        const lane_right = wave.get(target_grid_x + 1, target_grid_y).isLaneConnected();
-        const lane_top = wave.get(target_grid_x, target_grid_y - 1).isLaneConnected();
-        const lane_bottom = wave.get(target_grid_x, target_grid_y + 1).isLaneConnected();
+        const c_lane_left = wave.get(grid_x -| 1, grid_y).isLaneConnected();
+        const c_lane_right = wave.get(grid_x + 1, grid_y).isLaneConnected();
+        const c_lane_top = wave.get(grid_x, grid_y -| 1).isLaneConnected();
+        const c_lane_bottom = wave.get(grid_x, grid_y + 1).isLaneConnected();
 
-        std.debug.print("prev_grid_x: {}, prev_grid_y: {}\n", .{ prev_grid_x, prev_grid_y });
-        std.debug.print("target_grid_x: {}, target_grid_y: {}\n", .{ target_grid_x, target_grid_y });
-
-        std.debug.print("lane left: {}, lane right: {}, lane top: {}, lane bottom: {}\n", .{
-            lane_left,
-            lane_right,
-            lane_top,
-            lane_bottom,
-        });
+        const matching = grid_x == target_grid_x and grid_y == target_grid_y;
+        const prev_angle = self.prev_angle;
 
         // For animation rotation
         var desired_angle_delta: f32 = 0.0;
-        if (lane_left and lane_right) {
-            desired_angle_delta = 0;
-        } else if (lane_left and lane_bottom) {
-            desired_angle_delta = 45;
-        } else if (lane_top and lane_bottom) {
-            desired_angle_delta = 45;
-        } else if (lane_right and lane_bottom) {
-            desired_angle_delta = 45;
-        } else if (lane_left and lane_top) {
-            desired_angle_delta = -45;
-        } else if (lane_right and lane_top) {
-            desired_angle_delta = -45;
+        if (c_lane_left and c_lane_bottom and !matching) {
+            desired_angle_delta = 90;
+        } else if (c_lane_right and c_lane_top and !matching) {
+            desired_angle_delta = -90;
+        } else if (c_lane_left and c_lane_top and !matching) {
+            desired_angle_delta = -90;
+        } else if (c_lane_right and c_lane_bottom and !matching) {
+            desired_angle_delta = 90;
         }
-        const distance = self.previous.distance(self.target);
-        const t = self.previous.distance(self.position) / distance;
 
-        const prev_angle = self.angle;
-        const desired_angle = self.prev_angle + desired_angle_delta;
-        self.angle = rl.math.lerp(@min(self.prev_angle, desired_angle), @max(self.prev_angle, desired_angle), t);
-        self.prev_angle = prev_angle;
+        const distance = cell_size / 2;
+        // const t = if (matching)
+        //     self.position.distance(self.target) / distance
+        // else
+        //     self.position.distance(self.previous) / distance;
+        const t = self.position.distance(self.previous) / distance;
+
+        const desired_angle = prev_angle + desired_angle_delta;
+        if (desired_angle_delta != 0) {
+            // self.angle = rl.math.lerp(@min(prev_angle, desired_angle), @max(prev_angle, desired_angle), t);
+            self.angle = rl.math.lerp(prev_angle, desired_angle, t);
+
+            if (t > 0.99) {
+                // self.prev_angle = self.angle;
+                self.prev_angle = @round(self.angle / 90.0) * 90.0;
+            }
+
+            std.debug.print("------------------------\n", .{});
+            std.debug.print("angle: {d}\n", .{self.angle});
+            std.debug.print("t: {d}\n", .{t});
+            std.debug.print("desired_angle_delta: {d}\n", .{desired_angle_delta});
+            std.debug.print("desired_angle: {d}\n", .{desired_angle});
+            std.debug.print("prev_angle: {d}\n", .{prev_angle});
+            std.debug.print("self.prev_angle: {d}\n", .{self.prev_angle});
+        }
 
         // 1 is 1/32th of a cell
         if (self.position.distanceSqr(self.target) < 1) {
             // Find new target
+
+            const t_lane_left = wave.get(target_grid_x - 1, target_grid_y).isLaneConnected();
+            const t_lane_right = wave.get(target_grid_x + 1, target_grid_y).isLaneConnected();
+            const t_lane_top = wave.get(target_grid_x, target_grid_y - 1).isLaneConnected();
+            const t_lane_bottom = wave.get(target_grid_x, target_grid_y + 1).isLaneConnected();
+
             var target: rl.Vector2 = rl.Vector2.init(0, 0);
-            if (lane_left and prev_grid_x != target_grid_x - 1) {
+            if (t_lane_left and prev_grid_x != target_grid_x - 1) {
                 target = self.target.add(rl.Vector2.init(-cell_size, 0));
                 std.debug.print("lane left\n", .{});
             }
-            if (lane_right and prev_grid_x != target_grid_x + 1) {
+            if (t_lane_right and prev_grid_x != target_grid_x + 1) {
                 target = self.target.add(rl.Vector2.init(cell_size, 0));
                 std.debug.print("lane right\n", .{});
             }
-            if (lane_top and prev_grid_y != target_grid_y - 1) {
+            if (t_lane_top and prev_grid_y != target_grid_y - 1) {
                 target = self.target.add(rl.Vector2.init(0, -cell_size));
                 std.debug.print("lane top\n", .{});
             }
-            if (lane_bottom and prev_grid_y != target_grid_y + 1) {
+            if (t_lane_bottom and prev_grid_y != target_grid_y + 1) {
                 target = self.target.add(rl.Vector2.init(0, cell_size));
                 std.debug.print("lane bottom\n", .{});
             }
@@ -487,7 +503,7 @@ const Wave = struct {
                     // .{ .spawn_interval = 0.5 },
                     // .{ .spawn_interval = 0.5 },
                     // .{ .spawn_interval = 0.5 },
-                    .{ .spawn_interval = 1 },
+                    .{ .spawn_interval = 0 },
                     .{ .spawn_interval = 0 },
                     .{ .spawn_interval = 0 },
                 },
@@ -1312,7 +1328,8 @@ const ScreenBattle = struct {
                     .infinite_loop => game.texture_map.get(.bug_while).?,
                 };
 
-                const angle_deg = bug.angle;
+                // const angle_deg = bug.angle;
+                const angle_deg = 0;
                 const angle_rad = angle_deg * (std.math.pi / 180.0);
                 const origin_x = cos(angle_rad) * (cell_size / 2) - sin(angle_rad) * (cell_size / 2);
                 const origin_y = sin(angle_rad) * (cell_size / 2) + cos(angle_rad) * (cell_size / 2);
