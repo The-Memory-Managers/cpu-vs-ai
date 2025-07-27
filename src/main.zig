@@ -1286,11 +1286,13 @@ const ScreenVictory = struct {
     animation_offset: f32 = 0.2,
     animation_size: f32 = 0.3,
     initiated: bool = false,
+    completion_time: f32,
+    skipped: bool,
 
     const button_menu_width: f32 = @floatFromInt(cell_size * 7);
     const button_menu_height: f32 = @floatFromInt(cell_size);
 
-    fn init() ScreenVictory {
+    fn init(completion_time: f32, skipped: bool) ScreenVictory {
         return .{
             .camera = .{
                 .target = .{ .x = 128, .y = 128 },
@@ -1301,6 +1303,8 @@ const ScreenVictory = struct {
                 .rotation = 0,
                 .zoom = @as(f32, @floatFromInt(screen_height)) / world_height,
             },
+            .completion_time = completion_time,
+            .skipped = skipped,
         };
     }
 
@@ -1424,7 +1428,8 @@ const ScreenBattle = struct {
     transistors: u32 = initial_cpu_transistor_cost,
     cpu_transistor_cost: u32 = initial_cpu_transistor_cost,
     wave_over_timer: f32 = 0,
-
+    skipped: bool = false,
+    completion_time: f32 = 0,
     popup: bool = false,
 
     const max_ram = 100;
@@ -1454,6 +1459,7 @@ const ScreenBattle = struct {
     }
 
     fn update(self: *ScreenBattle, game: *Game, dt: f32) void {
+        self.completion_time += dt;
         self.handlePlayerInput(game, dt);
 
         self.updateCpuAndBugs(game, dt);
@@ -1474,7 +1480,7 @@ const ScreenBattle = struct {
             self.transistors = self.cpu_transistor_cost;
             if (self.wave_number > 3) {
                 self.deinit();
-                game.screen_state = .{ .victory = .init() };
+                game.screen_state = .{ .victory = .init(self.completion_time, self.skipped) };
             } else {
                 self.wave.deinit();
                 self.wave = .init(self.wave_number);
