@@ -1,6 +1,8 @@
 const std = @import("std");
 const rl = @import("raylib");
 const rlg = @import("raygui");
+const sin = std.math.sin;
+const cos = std.math.cos;
 const assert = std.debug.assert;
 
 const cell_size = 32;
@@ -172,6 +174,8 @@ const Bug = struct {
     target: rl.Vector2, // Center of next cell
     animation_time: f32 = 0,
     animation_state: f32 = 0,
+    prev_angle: f32 = 0,
+    angle: f32 = 0,
     dead: bool = false,
 
     pub fn init(kind: BugKind, position: rl.Vector2) Bug {
@@ -195,29 +199,52 @@ const Bug = struct {
         velocity = velocity.normalize().scale(speed(self.kind));
         self.position = self.position.add(velocity);
 
+        const prev_grid_x: usize = @intFromFloat(self.previous.x / cell_size);
+        const prev_grid_y: usize = @intFromFloat(self.previous.y / cell_size);
+        const target_grid_x: usize = @intFromFloat(self.target.x / cell_size);
+        const target_grid_y: usize = @intFromFloat(self.target.y / cell_size);
+
+        const lane_left = wave.get(target_grid_x - 1, target_grid_y).isLaneConnected();
+        const lane_right = wave.get(target_grid_x + 1, target_grid_y).isLaneConnected();
+        const lane_top = wave.get(target_grid_x, target_grid_y - 1).isLaneConnected();
+        const lane_bottom = wave.get(target_grid_x, target_grid_y + 1).isLaneConnected();
+
+        std.debug.print("prev_grid_x: {}, prev_grid_y: {}\n", .{ prev_grid_x, prev_grid_y });
+        std.debug.print("target_grid_x: {}, target_grid_y: {}\n", .{ target_grid_x, target_grid_y });
+
+        std.debug.print("lane left: {}, lane right: {}, lane top: {}, lane bottom: {}\n", .{
+            lane_left,
+            lane_right,
+            lane_top,
+            lane_bottom,
+        });
+
+        // For animation rotation
+        var desired_angle_delta: f32 = 0.0;
+        if (lane_left and lane_right) {
+            desired_angle_delta = 0;
+        } else if (lane_left and lane_bottom) {
+            desired_angle_delta = 45;
+        } else if (lane_top and lane_bottom) {
+            desired_angle_delta = 45;
+        } else if (lane_right and lane_bottom) {
+            desired_angle_delta = 45;
+        } else if (lane_left and lane_top) {
+            desired_angle_delta = -45;
+        } else if (lane_right and lane_top) {
+            desired_angle_delta = -45;
+        }
+        const distance = self.previous.distance(self.target);
+        const t = self.previous.distance(self.position) / distance;
+
+        const prev_angle = self.angle;
+        const desired_angle = self.prev_angle + desired_angle_delta;
+        self.angle = rl.math.lerp(@min(self.prev_angle, desired_angle), @max(self.prev_angle, desired_angle), t);
+        self.prev_angle = prev_angle;
+
         // 1 is 1/32th of a cell
         if (self.position.distanceSqr(self.target) < 1) {
             // Find new target
-            const prev_grid_x: usize = @intFromFloat(self.previous.x / cell_size);
-            const prev_grid_y: usize = @intFromFloat(self.previous.y / cell_size);
-            const target_grid_x: usize = @intFromFloat(self.target.x / cell_size);
-            const target_grid_y: usize = @intFromFloat(self.target.y / cell_size);
-
-            const lane_left = wave.get(target_grid_x - 1, target_grid_y).isLaneConnected();
-            const lane_right = wave.get(target_grid_x + 1, target_grid_y).isLaneConnected();
-            const lane_top = wave.get(target_grid_x, target_grid_y - 1).isLaneConnected();
-            const lane_bottom = wave.get(target_grid_x, target_grid_y + 1).isLaneConnected();
-
-            std.debug.print("prev_grid_x: {}, prev_grid_y: {}\n", .{ prev_grid_x, prev_grid_y });
-            std.debug.print("target_grid_x: {}, target_grid_y: {}\n", .{ target_grid_x, target_grid_y });
-
-            std.debug.print("lane left: {}, lane right: {}, lane top: {}, lane bottom: {}\n", .{
-                lane_left,
-                lane_right,
-                lane_top,
-                lane_bottom,
-            });
-
             var target: rl.Vector2 = rl.Vector2.init(0, 0);
             if (lane_left and prev_grid_x != target_grid_x - 1) {
                 target = self.target.add(rl.Vector2.init(-cell_size, 0));
@@ -455,11 +482,14 @@ const Wave = struct {
 
             spawn_rules.append(.{
                 .from_time_s = 0,
-                .to_time_s = 30,
+                .to_time_s = 1.1,
                 .bugs = .{
-                    .{ .spawn_interval = 0.5 },
-                    .{ .spawn_interval = 0.5 },
-                    .{ .spawn_interval = 0.5 },
+                    // .{ .spawn_interval = 0.5 },
+                    // .{ .spawn_interval = 0.5 },
+                    // .{ .spawn_interval = 0.5 },
+                    .{ .spawn_interval = 1 },
+                    .{ .spawn_interval = 0 },
+                    .{ .spawn_interval = 0 },
                 },
             }) catch unreachable;
 
@@ -994,7 +1024,7 @@ const ScreenGameOver = struct {
             const x = rx - width;
             // feel free to find a better way to extract single characters:
             const char = rl.textFormat("%c", .{self.game_over_text[i]});
-            const y = ry - ty * self.game_over_animation_size * std.math.sin((self.dt + self.game_over_animation_offset * fi) * self.game_over_speed);
+            const y = ry - ty * self.game_over_animation_size * sin((self.dt + self.game_over_animation_offset * fi) * self.game_over_speed);
             rl.drawTextEx(game.font_title, char, .{ .x = x, .y = y }, self.game_over_size, self.game_over_spacing, self.game_over_color);
             i += 1;
         }
@@ -1220,7 +1250,6 @@ const ScreenBattle = struct {
     fn render(self: *ScreenBattle, game: *Game) void {
         const a = game.frame_arena.allocator();
         const map = self.wave.map;
-        const half_cell = cell_size / 2;
 
         self.popup = false; // reset popup
 
@@ -1283,10 +1312,20 @@ const ScreenBattle = struct {
                     .infinite_loop => game.texture_map.get(.bug_while).?,
                 };
 
-                rl.drawTextureRec(
+                const angle_deg = bug.angle;
+                const angle_rad = angle_deg * (std.math.pi / 180.0);
+                const origin_x = cos(angle_rad) * (cell_size / 2) - sin(angle_rad) * (cell_size / 2);
+                const origin_y = sin(angle_rad) * (cell_size / 2) + cos(angle_rad) * (cell_size / 2);
+
+                const draw_x = bug.position.x - origin_x;
+                const draw_y = bug.position.y - origin_y;
+
+                rl.drawTexturePro(
                     texture,
                     .{ .x = bug.animation_state * cell_size, .y = 0, .width = cell_size, .height = cell_size },
-                    .{ .x = bug.position.x - half_cell, .y = bug.position.y - half_cell },
+                    .{ .x = draw_x, .y = draw_y, .width = cell_size, .height = cell_size },
+                    rl.Vector2.zero(),
+                    angle_deg,
                     rl.Color.white,
                 );
             }
