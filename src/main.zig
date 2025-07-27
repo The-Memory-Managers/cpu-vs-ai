@@ -895,14 +895,14 @@ const ScreenGameOver = struct {
             self.dt += dt;
         }
 
+        self.updateCamera();
+
+        // Must come after updateCamera
         if (self.pressed_retry) {
             game.screen_state = .{ .battle = .init() };
-        }
-        if (self.pressed_menu) {
+        } else if (self.pressed_menu) {
             game.screen_state = .{ .main = .init() };
         }
-
-        self.updateCamera();
     }
 
     fn updateCamera(self: *ScreenGameOver) void {
