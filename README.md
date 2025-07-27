@@ -50,14 +50,14 @@ The amount of CPU cores determine how many bugs it can attack in parallel.
 
 ## Credits
 
-- **Code**  
+- **Code (src/\*)**  
   Copyright (c) 2025 Kyren223, Nuclear Pasta, and GottZ. All rights reserved.
 
-- **Art (assets/img/\***)  
+- **Art (assets/img/\*)**  
   Copyright (c) 2025 Kyren223. All rights reserved.
 
-- **Audio (assets/sfx/\***)  
+- **Audio (assets/sfx/\*)**  
   Sound effects and music are public domain, sourced from [https://freesound.org](https://freesound.org).
 
-- **Fonts (assets/font/\***)  
+- **Fonts (assets/font/\*)**  
   Fonts are sourced from [https://www.nerdfonts.com](https://www.nerdfonts.com).
