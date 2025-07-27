@@ -1418,7 +1418,7 @@ const ScreenVictory = struct {
         const skipped_dim = rl.measureTextEx(game.font_title, skipped_text, self.size, self.spacing);
         rl.drawTextEx(
             game.font_title,
-            "Skipped: false",
+            skipped_text,
             .{
                 .x = (world_width - skipped_dim.x) / 2,
                 .y = (world_height - skipped_dim.y) / 2 + (cell_size * 3.5),
@@ -1506,6 +1506,7 @@ const ScreenBattle = struct {
     transistors: u32 = initial_cpu_transistor_cost,
     cpu_transistor_cost: u32 = initial_cpu_transistor_cost,
     wave_over_timer: f32 = 0,
+    skip: bool = false,
     skipped: bool = false,
     completion_time: f32 = 0,
     popup: bool = false,
@@ -1516,7 +1517,7 @@ const ScreenBattle = struct {
     const wave_continue_delay = 2; // seconds
 
     fn init() ScreenBattle {
-        const wave_number: u8 = 3; // MARK
+        const wave_number: u8 = 1; // MARK
         return .{
             .wave_number = wave_number,
             .wave = .init(wave_number),
@@ -1552,7 +1553,8 @@ const ScreenBattle = struct {
         if (self.ram <= 0) {
             self.deinit();
             game.screen_state = .{ .gameover = .init() };
-        } else if (self.wave_over_timer >= wave_continue_delay) {
+        } else if (self.wave_over_timer >= wave_continue_delay or self.skip) {
+            self.skip = false;
             self.wave_over_timer = 0;
             self.wave_number += 1;
             self.cpu_transistor_cost = initial_cpu_transistor_cost;
@@ -1615,6 +1617,9 @@ const ScreenBattle = struct {
             }, f) catch unreachable;
             f.writeByte('\n') catch unreachable;
             unreachable;
+        } else if (rl.isKeyPressed(rl.KeyboardKey.s)) {
+            self.skip = true;
+            self.skipped = true;
         }
 
         var mut_konami_code = konami_code;
