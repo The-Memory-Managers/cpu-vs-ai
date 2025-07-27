@@ -27,6 +27,8 @@ zig build run
 
 If you are on NixOS, run `nix develop` and then inside it run `zig build run`
 
+Contact us if you have issues building the game, we will try to help you out.
+
 ## How to play
 
 Left click to place a CPU where a socket is available.
