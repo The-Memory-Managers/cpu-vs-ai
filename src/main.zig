@@ -419,8 +419,8 @@ const Cpu = struct {
             // else => 5,
             0...9 => 1,
             10...24 => 2,
-            25...49 => 3,
-            50...100 => 4,
+            25...74 => 3,
+            75...250 => 4,
             else => 5,
         };
     }
@@ -585,7 +585,6 @@ const Wave = struct {
                 },
             }) catch unreachable;
         } else if (wave_number == 2) {
-            // TODO: game design
             spawn_rules.append(.{
                 .from_time_s = 0,
                 .to_time_s = 40,
@@ -636,6 +635,16 @@ const Wave = struct {
                 },
             }) catch unreachable;
 
+            spawn_rules.append(.{
+                .from_time_s = 80,
+                .to_time_s = 120,
+                .bugs = .{
+                    .{ .spawn_interval = 0.5 },
+                    .{ .spawn_interval = 1 },
+                    .{ .spawn_interval = 0.5 },
+                },
+            }) catch unreachable;
+
             map = .{
                 .{ .none, .none, .none, .none, .none, .none, .none, .none, .none, .none, .none, .none, .none, .none, .none, .none },
                 .{ .none, .none, .none, .socket, .socket, .socket, .socket, .socket, .socket, .socket, .none, .none, .none, .none, .none, .none },
@@ -648,7 +657,6 @@ const Wave = struct {
                 .{ .none, .none, .none, .none, .none, .none, .none, .none, .none, .none, .none, .none, .none, .none, .none, .none },
             };
         } else if (wave_number == 3) {
-            // TODO: game design
             spawn_rules.append(.{
                 .from_time_s = 0,
                 .to_time_s = 40,
@@ -1349,7 +1357,7 @@ const ScreenBattle = struct {
     const wave_continue_delay = 2; // seconds
 
     fn init() ScreenBattle {
-        const wave_number: u8 = 2; // MARK
+        const wave_number: u8 = 3; // MARK
         return .{
             .wave_number = wave_number,
             .wave = .init(wave_number),
