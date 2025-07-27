@@ -6,7 +6,7 @@ Don't let the bugs get across the PCIE lanes and corrupt your RAM!
 
 <img src="assets/img/screenshot.png" />
 
-TODO: insert video link here
+Watch a video playthrough: [https://youtu.be/\_clLDGNlef0](https://youtu.be/_clLDGNlef0)
 
 ## Installation
 
