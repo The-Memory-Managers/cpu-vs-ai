@@ -54,6 +54,9 @@ The amount of CPU cores determine how many bugs it can attack in parallel.
 
 ## Credits
 
+- **[raylib-zig](https://github.com/Not-Nik/raylib-zig)**  
+  MIT License, Copyright (c) 2020 Nikolas Wipper
+
 - **Code (src/\*)**  
   Copyright (c) 2025 Kyren223, Nuclear Pasta, and GottZ. All rights reserved.
 
@@ -61,7 +64,7 @@ The amount of CPU cores determine how many bugs it can attack in parallel.
   Copyright (c) 2025 Kyren223. All rights reserved.
 
 - **Audio (assets/sfx/\*)**  
-  Sound effects and music are public domain, sourced from [https://freesound.org](https://freesound.org).
+  Sound effects and music are public domain, sourced from [freesound.org](https://freesound.org).
 
 - **Fonts (assets/font/\*)**  
-  Fonts are sourced from [https://www.nerdfonts.com](https://www.nerdfonts.com).
+  Fonts are sourced from [nerdfonts.com](https://www.nerdfonts.com).
