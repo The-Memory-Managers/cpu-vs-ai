@@ -60,10 +60,10 @@ In case you like what you see, don't forget to hit that ⭐ Button!
 ## Credits
 
 - **Code (src/\*)**  
-  Copyright (c) 2025 Kyren223, Nuclear Pasta, and GottZ. All rights reserved.
+  Copyright (c) 2025 [Kyren223](https://github.com/Kyren223), [Nuclear Pasta](https://github.com/voidwyrm-2), and [GottZ](https://github.com/GottZ). All rights reserved.
 
 - **Art (assets/img/\*)**  
-  Copyright (c) 2025 Kyren223. All rights reserved.
+  Copyright (c) 2025 [Kyren223](https://github.com/Kyren223). All rights reserved.
 
 - **Audio (assets/sfx/\*)**  
   Sound effects and music are public domain, sourced from [freesound.org](https://freesound.org).
