@@ -4,9 +4,11 @@ The AI chip on your motherboard lost control! the code it's generating is full o
 Place and upgrade your CPUs to destroy these bugs!  
 Don't let the bugs get across the PCIE lanes and corrupt your RAM!
 
-<img src="assets/img/screenshot.png" />
+We managed to get this game into a MVP state 17 hours before the deadline.  
+Repository state at time of [submission](https://discord.com/channels/551921866173054977/1398343424104468622/1399153592434167869): [here](https://github.com/The-Memory-Managers/cpu-vs-ai/tree/4f5a466025ca3aa5b3e5426397922253d86a8fb6)
 
-Watch a video playthrough: [https://youtu.be/\_clLDGNlef0](https://youtu.be/_clLDGNlef0)
+Watch a video playthrough: [youtu.be/\_clLDGNlef0](https://youtu.be/_clLDGNlef0)  
+[![screenshot](assets/img/screenshot.png)](https://youtu.be/_clLDGNlef0)
 
 ## Installation
 
