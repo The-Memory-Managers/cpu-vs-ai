@@ -1,9 +1,36 @@
 const std = @import("std");
 const rlz = @import("raylib_zig");
 
-pub fn build(b: *std.Build) void {
-    const target = b.standardTargetOptions(.{});
+const exe_name = "hackathon";
+
+const targets: []const std.Target.Query = &.{
+    .{ .cpu_arch = .aarch64, .os_tag = .macos },
+    .{ .cpu_arch = .aarch64, .os_tag = .linux },
+    .{ .cpu_arch = .x86_64, .os_tag = .linux, .abi = .gnu },
+    .{ .cpu_arch = .x86_64, .os_tag = .linux, .abi = .musl },
+    .{ .cpu_arch = .x86_64, .os_tag = .windows },
+    //
+    // TODO: add WASM support
+    //.{ .cpu_arch = .wasm32, .os_tag = .emscripten },
+};
+
+pub fn build(b: *std.Build) !void {
+    const build_all = b.option(bool, "ball", "Build and package");
+
     const optimize = b.standardOptimizeOption(.{});
+
+    const run_step = b.step("run", "Run the app");
+    const pack_step = b.step("pack", "Build and package for each supported OS/arch");
+
+    try buildRun(b, run_step, optimize);
+
+    if (build_all orelse false) {
+        try buildPack(b, pack_step, optimize);
+    }
+}
+
+fn buildRun(b: *std.Build, parent: *std.Build.Step, optimize: std.builtin.OptimizeMode) !void {
+    const target = b.standardTargetOptions(.{});
 
     const exe_mod = b.createModule(.{
         .root_source_file = b.path("src/main.zig"),
@@ -12,11 +39,79 @@ pub fn build(b: *std.Build) void {
     });
 
     const exe = b.addExecutable(.{
-        .name = "hackathon",
+        .name = exe_name,
         .root_module = exe_mod,
     });
 
-    // Raylib
+    try addRaylibDep(b, exe, target, optimize);
+
+    b.installArtifact(exe);
+
+    const run_cmd = b.addRunArtifact(exe);
+
+    run_cmd.step.dependOn(b.getInstallStep());
+
+    parent.dependOn(&run_cmd.step);
+}
+
+const pkg_folder = "pkg";
+
+// TODO: fix this function
+fn buildPack(b: *std.Build, parent: *std.Build.Step, optimize: std.builtin.OptimizeMode) !void {
+    const rm_pkg = b.addSystemCommand(&.{ "rm", "-rf", pkg_folder });
+
+    const mkdir_pkg = b.addSystemCommand(&.{ "mkdir", pkg_folder });
+    mkdir_pkg.step.dependOn(&rm_pkg.step);
+
+    for (targets) |t| {
+        const target = b.resolveTargetQuery(t);
+        const target_triple = try t.zigTriple(b.allocator);
+
+        const exe = b.addExecutable(.{
+            .name = exe_name,
+            .root_source_file = b.path("src/main.zig"),
+            .target = target,
+            .optimize = optimize,
+        });
+
+        try addRaylibDep(b, exe, target, optimize);
+
+        const target_output = b.addInstallArtifact(exe, .{
+            .dest_dir = .{
+                .override = .{
+                    .custom = target_triple,
+                },
+            },
+        });
+
+        b.getInstallStep().dependOn(&target_output.step);
+
+        const move_output = b.addSystemCommand(&.{
+            "mv",
+            try std.fmt.allocPrint(b.allocator, "zig-out/{s}", .{target_triple}),
+            ".",
+        });
+
+        move_output.step.dependOn(b.getInstallStep());
+
+        const zip = b.addSystemCommand(&.{
+            "zip",
+            "-r",
+            try std.fmt.allocPrint(b.allocator, "{s}/{s}.zip", .{ pkg_folder, target_triple }),
+            target_triple,
+        });
+
+        zip.step.dependOn(&mkdir_pkg.step);
+        zip.step.dependOn(&move_output.step);
+
+        const rm_exe = b.addSystemCommand(&.{ "rm", "-rf", target_triple });
+        rm_exe.step.dependOn(&zip.step);
+
+        parent.dependOn(&rm_exe.step);
+    }
+}
+
+fn addRaylibDep(b: *std.Build, exe: *std.Build.Step.Compile, target: std.Build.ResolvedTarget, optimize: std.builtin.OptimizeMode) !void {
     const raylib_dep = b.dependency("raylib_zig", .{
         .target = target,
         .optimize = optimize,
@@ -36,50 +131,4 @@ pub fn build(b: *std.Build) void {
     exe.linkLibrary(raylib_artifact);
     exe.root_module.addImport("raylib", raylib);
     exe.root_module.addImport("raygui", raygui);
-
-    // Build the C library
-    const lib_c = b.addStaticLibrary(.{
-        .name = "c_lib",
-        .target = target,
-        .optimize = optimize,
-    });
-
-    lib_c.addCSourceFile(.{
-        .file = b.path("src/lib.c"),
-        .flags = &[_][]const u8{"-std=c99"},
-    });
-    lib_c.addIncludePath(b.path("include"));
-    lib_c.linkLibC();
-
-    exe.addIncludePath(b.path("include"));
-    exe.addIncludePath(b.path("src"));
-    exe.linkLibrary(lib_c);
-    exe.linkLibC();
-
-    b.installArtifact(exe);
-
-    const run_cmd = b.addRunArtifact(exe);
-
-    // By making the run step depend on the install step, it will be run from the
-    // installation directory rather than directly from within the cache directory.
-    // This is not necessary, however, if the application depends on other installed
-    // files, this ensures they will be present and in the expected location.
-    run_cmd.step.dependOn(b.getInstallStep());
-
-    // Allow passing args to the exe like this: `zig build run -- arg1 arg2 etc`
-    if (b.args) |args| {
-        run_cmd.addArgs(args);
-    }
-
-    const run_step = b.step("run", "Run the app");
-    run_step.dependOn(&run_cmd.step);
-
-    const exe_tests = b.addTest(.{
-        .root_module = exe_mod,
-    });
-
-    const run_exe_tests = b.addRunArtifact(exe_tests);
-
-    const test_step = b.step("test", "Run tests");
-    test_step.dependOn(&run_exe_tests.step);
 }

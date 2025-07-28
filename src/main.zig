@@ -20,6 +20,20 @@ const edit = debug and false;
 var screen_width: i32 = 1280;
 var screen_height: i32 = 720;
 
+const konami_code = [_]rl.KeyboardKey{
+    .up,
+    .up,
+    .down,
+    .down,
+    .left,
+    .right,
+    .left,
+    .right,
+    .b,
+    .a,
+    .enter,
+};
+
 // TODO: ideas for the future (after hackathon)
 // "Heat system" (shooting lazers increases heat, heat decreases over time, if heat is too high, CPU throttles)
 // "Cooling system" some way to have CPUs that are more resistant to heat
@@ -71,6 +85,17 @@ fn getMousePos(camera: *const rl.Camera2D) rl.Vector2 {
         .x = @max(msp.x, 0),
         .y = @max(msp.y, 0),
     };
+}
+
+fn readCode(counter: *u8, seq: []const rl.KeyboardKey) bool {
+    if (counter.* >= seq.len) {
+        counter.* = 0;
+        return true;
+    } else if (rl.isKeyPressed(seq[@as(usize, counter.*)])) {
+        counter.* += 1;
+    }
+
+    return false;
 }
 
 fn textureButtonScaled(game: *Game, camera: *const rl.Camera2D, texture: rl.Texture2D, pos: rl.Vector2, rotation: f32, scale: f32) bool {
@@ -1433,6 +1458,7 @@ const ScreenBattle = struct {
     skipped: bool = false,
     completion_time: f32 = 0,
     popup: bool = false,
+    konami_counter: u8 = 0,
 
     const max_ram = 100;
     const initial_cpu_transistor_cost = 50;
@@ -1538,6 +1564,12 @@ const ScreenBattle = struct {
             }, f) catch unreachable;
             f.writeByte('\n') catch unreachable;
             unreachable;
+        }
+
+        var mut_konami_code = konami_code;
+
+        if (readCode(&self.konami_counter, &mut_konami_code)) {
+            self.transistors += 10000;
         }
     }
 
