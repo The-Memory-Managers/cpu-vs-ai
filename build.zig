@@ -3,25 +3,8 @@ const rlz = @import("raylib_zig");
 
 const exe_name = "hackathon";
 
-const all_targets: []const std.Target.Query = &.{
-    .{ .cpu_arch = .aarch64, .os_tag = .macos },
-    // .{ .cpu_arch = .aarch64, .os_tag = .linux },
-    .{ .cpu_arch = .x86_64, .os_tag = .linux, .abi = .gnu },
-    // .{ .cpu_arch = .x86_64, .os_tag = .linux, .abi = .musl },
-    .{ .cpu_arch = .x86_64, .os_tag = .windows },
-    //
-    // TODO: add WASM support
-    //.{ .cpu_arch = .wasm32, .os_tag = .emscripten },
-};
-
-const wasm_targets: []const std.Target.Query = &.{
-    // TODO: add WASM support
-    .{ .cpu_arch = .wasm32, .os_tag = .emscripten },
-};
-
 pub fn build(b: *std.Build) !void {
-    const build_all = b.option(bool, "ball", "Build and package");
-    const build_wasm = b.option(bool, "wasm", "Build and package WASM");
+    const build_wasm = b.option(bool, "bwasm", "Build and package WASM");
 
     const emcc = rlz.emcc;
     _ = emcc;
@@ -29,18 +12,15 @@ pub fn build(b: *std.Build) !void {
     const optimize = b.standardOptimizeOption(.{});
 
     const run_step = b.step("run", "Run the app");
-    const pack_step = b.step("pack", "Build and package for each supported OS/arch");
 
-    try buildRun(b, run_step, optimize);
-
-    if (build_all orelse false) {
-        try buildPack(b, pack_step, optimize, all_targets);
-    } else if (build_wasm orelse false) {
-        try buildPack(b, pack_step, optimize, wasm_targets);
+    if (build_wasm orelse false) {
+        try buildWasm(b, run_step, optimize);
+    } else {
+        try buildNative(b, run_step, optimize);
     }
 }
 
-fn buildRun(b: *std.Build, parent: *std.Build.Step, optimize: std.builtin.OptimizeMode) !void {
+fn buildNative(b: *std.Build, parent: *std.Build.Step, optimize: std.builtin.OptimizeMode) !void {
     const target = b.standardTargetOptions(.{});
 
     const exe_mod = b.createModule(.{
@@ -65,61 +45,32 @@ fn buildRun(b: *std.Build, parent: *std.Build.Step, optimize: std.builtin.Optimi
     parent.dependOn(&run_cmd.step);
 }
 
-const pkg_folder = "pkg";
+fn buildWasm(b: *std.Build, parent: *std.Build.Step, optimize: std.builtin.OptimizeMode) !void {
+    if (true)
+        @panic("WASM builds are not supported at this time");
 
-// TODO: fix this function
-fn buildPack(b: *std.Build, parent: *std.Build.Step, optimize: std.builtin.OptimizeMode, targets: []const std.Target.Query) !void {
-    const rm_pkg = b.addSystemCommand(&.{ "rm", "-rf", pkg_folder });
+    const target = b.standardTargetOptions(.{});
 
-    const mkdir_pkg = b.addSystemCommand(&.{ "mkdir", pkg_folder });
-    mkdir_pkg.step.dependOn(&rm_pkg.step);
+    const exe_mod = b.createModule(.{
+        .root_source_file = b.path("src/main.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
 
-    for (targets) |t| {
-        const target = b.resolveTargetQuery(t);
-        const target_triple = try t.zigTriple(b.allocator);
+    const exe = b.addExecutable(.{
+        .name = exe_name,
+        .root_module = exe_mod,
+    });
 
-        const exe = b.addExecutable(.{
-            .name = exe_name,
-            .root_source_file = b.path("src/main.zig"),
-            .target = target,
-            .optimize = optimize,
-        });
+    try addRaylibDep(b, exe, target, optimize);
 
-        try addRaylibDep(b, exe, target, optimize);
+    b.installArtifact(exe);
 
-        const target_output = b.addInstallArtifact(exe, .{
-            .dest_dir = .{
-                .override = .{
-                    .custom = target_triple,
-                },
-            },
-        });
+    const run_cmd = b.addRunArtifact(exe);
 
-        b.getInstallStep().dependOn(&target_output.step);
+    run_cmd.step.dependOn(b.getInstallStep());
 
-        const move_output = b.addSystemCommand(&.{
-            "mv",
-            try std.fmt.allocPrint(b.allocator, "zig-out/{s}", .{target_triple}),
-            ".",
-        });
-
-        move_output.step.dependOn(b.getInstallStep());
-
-        const zip = b.addSystemCommand(&.{
-            "zip",
-            "-r",
-            try std.fmt.allocPrint(b.allocator, "{s}/{s}.zip", .{ pkg_folder, target_triple }),
-            target_triple,
-        });
-
-        zip.step.dependOn(&mkdir_pkg.step);
-        zip.step.dependOn(&move_output.step);
-
-        const rm_exe = b.addSystemCommand(&.{ "rm", "-rf", target_triple });
-        rm_exe.step.dependOn(&zip.step);
-
-        parent.dependOn(&rm_exe.step);
-    }
+    parent.dependOn(&run_cmd.step);
 }
 
 fn addRaylibDep(b: *std.Build, exe: *std.Build.Step.Compile, target: std.Build.ResolvedTarget, optimize: std.builtin.OptimizeMode) !void {

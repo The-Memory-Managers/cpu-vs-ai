@@ -12,14 +12,16 @@ TODO: insert video link here
 
 TODO: add wasm build?
 
-Clone the repository
+Clone the repository:
 
 ```
 git clone https://github.com/The-Memory-Managers/cpu-vs-ai
 cd hackathon
 ```
 
-Install zig release version 0.14 and run:
+Install zig release version 0.14 from https://ziglang.org/download/
+
+Then run:
 
 ```
 zig build run
