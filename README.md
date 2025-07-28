@@ -7,7 +7,8 @@ Don't let the bugs get across the PCIE lanes and corrupt your RAM!
 We managed to get this game into a MVP state 17 hours before the deadline.  
 Repository state at time of [submission](https://discord.com/channels/551921866173054977/1398343424104468622/1399153592434167869): [here](https://github.com/The-Memory-Managers/cpu-vs-ai/tree/4f5a466025ca3aa5b3e5426397922253d86a8fb6)
 
-Watch a video playthrough: [youtu.be/\_clLDGNlef0](https://youtu.be/_clLDGNlef0)  
+Watch a video playthrough: [youtu.be/\_clLDGNlef0](https://youtu.be/_clLDGNlef0)
+
 [![screenshot](assets/img/screenshot.png)](https://youtu.be/_clLDGNlef0)
 
 ## Installation
@@ -54,9 +55,6 @@ The amount of CPU cores determine how many bugs it can attack in parallel.
 
 ## Credits
 
-- **[raylib-zig](https://github.com/Not-Nik/raylib-zig)**  
-  MIT License, Copyright (c) 2020 Nikolas Wipper
-
 - **Code (src/\*)**  
   Copyright (c) 2025 Kyren223, Nuclear Pasta, and GottZ. All rights reserved.
 
@@ -68,3 +66,12 @@ The amount of CPU cores determine how many bugs it can attack in parallel.
 
 - **Fonts (assets/font/\*)**  
   Fonts are sourced from [nerdfonts.com](https://www.nerdfonts.com).
+
+
+- **[raylib-zig](https://github.com/Not-Nik/raylib-zig)**  
+  MIT License, Copyright (c) 2020 Nikolas Wipper
+
+
+- **[raylib](https://github.com/raysan5/raylib)**  
+  Zlib License, Copyright (c) 2013-2025 Ramon Santamaria (@raysan5)
+
