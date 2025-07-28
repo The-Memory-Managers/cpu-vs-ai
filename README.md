@@ -14,7 +14,7 @@ Clone the repository:
 
 ```
 git clone https://github.com/The-Memory-Managers/cpu-vs-ai
-cd hackathon
+cd cpu-vs-ai
 ```
 
 Install zig release version 0.14 from https://ziglang.org/download/
