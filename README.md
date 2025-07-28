@@ -4,9 +4,9 @@ The AI chip on your motherboard lost control! the code it's generating is full o
 Place and upgrade your CPUs to destroy these bugs!  
 Don't let the bugs get across the PCIE lanes and corrupt your RAM!
 
-Watch a video playthrough: [youtu.be/\_clLDGNlef0](https://youtu.be/_clLDGNlef0)
-
 [![screenshot](assets/img/screenshot.png)](https://youtu.be/_clLDGNlef0)
+
+Watch a video playthrough: [youtu.be/\_clLDGNlef0](https://youtu.be/_clLDGNlef0)
 
 ## Installation
 
